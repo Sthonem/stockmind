@@ -59,6 +59,7 @@ function riskColor(level?: string) {
 export default function Home() {
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [showCreateForm, setShowCreateForm] = useState(false)
   const portfoliosQuery = usePortfolios()
   const portfolios = useMemo(
     () => (portfoliosQuery.data || []) as Portfolio[],
@@ -122,6 +123,13 @@ export default function Home() {
             </select>
             <button
               className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-700 bg-gray-900 px-4 text-sm text-gray-200 transition hover:border-gray-600 hover:bg-gray-800"
+              onClick={() => setShowCreateForm(!showCreateForm)}
+            >
+              <Briefcase size={16} />
+              {showCreateForm ? 'Cancel' : 'New Portfolio'}
+            </button>
+            <button
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-700 bg-gray-900 px-4 text-sm text-gray-200 transition hover:border-gray-600 hover:bg-gray-800"
               onClick={() => {
                 portfoliosQuery.refetch()
                 portfolioQuery.refetch()
@@ -135,6 +143,18 @@ export default function Home() {
             </button>
           </div>
         </div>
+
+        {showCreateForm && (
+          <div className="mb-6">
+            <Card>
+              <h2 className="text-lg font-medium text-white mb-4">Create New Portfolio</h2>
+              <CreatePortfolioForm onSuccess={() => {
+                setShowCreateForm(false)
+                portfoliosQuery.refetch()
+              }} />
+            </Card>
+          </div>
+        )}
 
         {portfolioLoadError ? (
           <Card>
