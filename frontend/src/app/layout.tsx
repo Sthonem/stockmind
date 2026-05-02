@@ -13,7 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-gray-950 text-white min-h-screen">
+      <body style={{ background: '#080C14', color: '#F0F4FF', minHeight: '100vh' }}>
         <QueryClientProvider client={queryClient}>
           <Navbar />
           <main>

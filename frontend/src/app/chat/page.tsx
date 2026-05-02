@@ -3,10 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 
-import { ChatInput } from '@/components/chat/ChatInput'
-import { ChatMessage } from '@/components/chat/ChatMessage'
-import { SuggestedQuestions } from '@/components/chat/SuggestedQuestions'
-import { Card } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
 import { agentApi } from '@/lib/api'
 import { usePortfolios } from '@/lib/hooks'
 import type { Portfolio } from '@/lib/types'
@@ -27,8 +24,16 @@ function currentTime() {
   return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
+const suggestions = [
+  'How concentrated is my portfolio?',
+  'NVDA risk vs reward right now',
+  'Best stop-loss level for TSLA',
+  'Am I too heavy in tech?',
+]
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState('')
   const [portfolioContext, setPortfolioContext] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -41,29 +46,20 @@ export default function ChatPage() {
       agentApi.ask(
         question,
         portfolioContext ? portfolioId : undefined,
-        messages.map((message) => ({ role: message.role, content: message.content }))
-      ).then((response) => response.data),
+        messages.map((m) => ({ role: m.role, content: m.content }))
+      ).then((res) => res.data),
     onSuccess: (data, question) => {
-      const timestamp = currentTime()
-      setMessages((previous) => [
-        ...previous,
-        { role: 'user', content: question, timestamp },
-        {
-          role: 'assistant',
-          content: data.answer,
-          timestamp,
-          tokensUsed: data.tokens_used,
-        },
+      const ts = currentTime()
+      setMessages((prev) => [
+        ...prev,
+        { role: 'user', content: question, timestamp: ts },
+        { role: 'assistant', content: data.answer, timestamp: ts, tokensUsed: data.tokens_used },
       ])
     },
     onError: () => {
-      setMessages((previous) => [
-        ...previous,
-        {
-          role: 'assistant',
-          content: 'Sorry, I encountered an error. Please check your GROQ_API_KEY configuration.',
-          timestamp: currentTime(),
-        },
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: 'Sorry, I encountered an error. Please check your GROQ_API_KEY configuration.', timestamp: currentTime() },
       ])
     },
   })
@@ -72,83 +68,167 @@ export default function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, sendMessage.isPending])
 
-  const handleSend = (message: string) => {
-    sendMessage.mutate(message)
+  const handleSend = (text: string) => {
+    if (!text.trim() || sendMessage.isPending) return
+    setInput('')
+    sendMessage.mutate(text)
   }
 
+  const isEmpty = messages.length === 0
+
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
-      <div className="flex items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white">AI Chat</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Ask questions about your portfolio and market conditions
-          </p>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: 'calc(100vh - 56px)',
+      maxWidth: 780,
+      margin: '0 auto',
+      padding: '0 32px',
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 0 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 10,
+            background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 14, fontWeight: 900, color: '#000',
+          }}>S</div>
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#F0F4FF' }}>StockMind AI</p>
+            <p style={{ fontSize: 11, color: '#22c55e' }}>● online · portfolio context {portfolioContext ? 'on' : 'off'}</p>
+          </div>
         </div>
-        <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={portfolioContext}
-            onChange={(event) => setPortfolioContext(event.target.checked)}
-            className="rounded"
-          />
-          Include portfolio context
-        </label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#8B96B0', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={portfolioContext}
+              onChange={(e) => setPortfolioContext(e.target.checked)}
+              style={{ accentColor: '#22c55e' }}
+            />
+            Portfolio context
+          </label>
+          <Badge label="LLaMA 3 · Groq" color="purple" />
+        </div>
       </div>
 
-      <Card className="flex flex-col min-h-[500px]">
-        <div className="flex-1 space-y-4 mb-4 overflow-y-auto max-h-[480px]">
-          {messages.length === 0 ? (
-            <div className="py-6">
-              <p className="text-gray-500 text-sm text-center mb-6">
-                StockMind AI is ready. Ask anything about your portfolio.
-              </p>
-              <SuggestedQuestions onSelect={handleSend} />
+      {/* Message area */}
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 8, display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {isEmpty && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 24, padding: '40px 0' }}>
+            <p style={{ fontSize: 15, color: '#8B96B0' }}>What do you want to know about your portfolio?</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+              {suggestions.map((s) => (
+                <button key={s} onClick={() => handleSend(s)} style={{
+                  padding: '8px 16px', borderRadius: 20,
+                  background: '#0E1420', border: '1px solid rgba(255,255,255,0.07)',
+                  color: '#8B96B0', fontSize: 13, cursor: 'pointer',
+                }}>{s}</button>
+              ))}
             </div>
-          ) : (
-            messages.map((message, index) => (
-              <ChatMessage
-                key={`${message.role}-${message.timestamp}-${index}`}
-                role={message.role}
-                content={message.content}
-                timestamp={message.timestamp}
-                tokensUsed={message.tokensUsed}
-              />
-            ))
-          )}
+          </div>
+        )}
 
-          {sendMessage.isPending && (
-            <div className="flex gap-3">
-              <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-xs text-gray-300">
-                AI
-              </div>
-              <div className="bg-gray-800 rounded-xl rounded-tl-sm px-4 py-3">
-                <div className="flex gap-1">
-                  {[0, 1, 2].map((index) => (
-                    <span
-                      key={index}
-                      className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce"
-                      style={{ animationDelay: `${index * 0.15}s` }}
-                    />
-                  ))}
-                </div>
+        {messages.map((msg, i) => {
+          const isAI = msg.role === 'assistant'
+          const showTime = i === 0 || messages[i - 1].role !== msg.role
+          return (
+            <div key={i} style={{
+              display: 'flex', gap: 10, marginBottom: 4,
+              flexDirection: isAI ? 'row' : 'row-reverse',
+              alignItems: 'flex-end',
+            }}>
+              {isAI && (
+                <div style={{
+                  width: 28, height: 28, borderRadius: 8, flexShrink: 0, marginBottom: 2,
+                  background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10, fontWeight: 900, color: '#000',
+                  visibility: showTime ? 'visible' : 'hidden',
+                }}>S</div>
+              )}
+              <div style={{ maxWidth: '72%' }}>
+                {showTime && (
+                  <p style={{ fontSize: 10, color: '#4A5568', marginBottom: 4, textAlign: isAI ? 'left' : 'right' }}>{msg.timestamp}</p>
+                )}
+                <div style={{
+                  background: isAI ? '#0E1420' : '#3b82f6',
+                  border: isAI ? '1px solid rgba(255,255,255,0.07)' : '1px solid transparent',
+                  borderRadius: isAI ? '4px 14px 14px 14px' : '14px 4px 14px 14px',
+                  padding: '10px 14px',
+                  fontSize: 13, color: '#F0F4FF', lineHeight: 1.7,
+                  whiteSpace: 'pre-wrap',
+                }}>{msg.content}</div>
               </div>
             </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
+          )
+        })}
 
-        <div className="border-t border-gray-800 pt-4">
-          <ChatInput
-            onSend={handleSend}
-            isLoading={sendMessage.isPending}
-            placeholder="Ask about your portfolio risk, market conditions, stop-loss levels..."
+        {sendMessage.isPending && (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 4 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #22c55e, #16a34a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 900, color: '#000' }}>S</div>
+            <div style={{ background: '#0E1420', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '4px 14px 14px 14px', padding: '12px 16px', display: 'flex', gap: 4 }}>
+              {[0, 1, 2].map((j) => (
+                <span key={j} style={{
+                  width: 5, height: 5, borderRadius: '50%', background: '#8B96B0', display: 'block',
+                  animation: 'chatbounce 1s infinite',
+                  animationDelay: `${j * 0.18}s`,
+                }} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!isEmpty && messages.length <= 4 && !sendMessage.isPending && (
+          <div style={{ paddingTop: 12, display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+            {suggestions.slice(0, 3).map((s) => (
+              <button key={s} onClick={() => handleSend(s)} style={{
+                padding: '6px 12px', borderRadius: 20,
+                background: '#0E1420', border: '1px solid rgba(255,255,255,0.07)',
+                color: '#4A5568', fontSize: 12, cursor: 'pointer',
+              }}>{s}</button>
+            ))}
+          </div>
+        )}
+
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input bar */}
+      <div style={{ paddingBottom: 20, paddingTop: 10 }}>
+        <div style={{
+          display: 'flex', gap: 8, alignItems: 'center',
+          background: '#0E1420', border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: 12, padding: '6px 6px 6px 14px',
+        }}>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend(input)}
+            placeholder="Message StockMind..."
+            style={{
+              flex: 1, background: 'transparent', border: 'none',
+              color: '#F0F4FF', fontSize: 13, outline: 'none', lineHeight: 1.5,
+            }}
           />
-          <p className="text-gray-700 text-xs mt-2 text-center">
-            Not financial advice. Always do your own research.
-          </p>
+          <button
+            onClick={() => handleSend(input)}
+            disabled={!input.trim() || sendMessage.isPending}
+            style={{
+              height: 34, padding: '0 16px', borderRadius: 8,
+              background: input.trim() ? '#3b82f6' : '#141C2B',
+              color: input.trim() ? '#fff' : '#4A5568',
+              fontSize: 13, fontWeight: 600, border: 'none',
+              cursor: input.trim() ? 'pointer' : 'default',
+              transition: 'all 0.15s',
+            }}
+          >↑</button>
         </div>
-      </Card>
+        <p style={{ textAlign: 'center', fontSize: 10, color: '#4A5568', marginTop: 8 }}>
+          Not financial advice — always do your own research.
+        </p>
+      </div>
     </div>
   )
 }

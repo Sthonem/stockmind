@@ -1,7 +1,6 @@
 'use client'
 
 import { ThesisCard } from '@/components/journal/ThesisCard'
-import { EmptyState } from '@/components/ui/EmptyState'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { usePortfolio, usePortfolioPerformance, usePortfolioRisk, usePortfolios } from '@/lib/hooks'
 import type { PerformanceData, Portfolio, PortfolioRiskSummary, Position } from '@/lib/types'
@@ -26,7 +25,7 @@ export default function JournalPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto px-6 py-8 flex justify-center">
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 32px', display: 'flex', justifyContent: 'center' }}>
         <LoadingSpinner />
       </div>
     )
@@ -36,83 +35,84 @@ export default function JournalPage() {
   const performancePositions = performance?.positions || []
   const riskPositions = risk?.positions || []
 
-  const enriched: EnrichedPosition[] = positions.map((position) => {
-    const performancePosition = performancePositions.find((item) => item.ticker === position.ticker)
-    const riskPosition = riskPositions.find((item) => item.ticker === position.ticker)
+  const enriched: EnrichedPosition[] = positions.map((pos) => {
+    const perf = performancePositions.find((item) => item.ticker === pos.ticker)
+    const riskPos = riskPositions.find((item) => item.ticker === pos.ticker)
     return {
-      ...position,
-      unrealized_pnl_pct: performancePosition?.unrealized_pnl_pct,
-      risk_score: riskPosition?.risk_score,
-      risk_level: riskPosition?.risk_level,
+      ...pos,
+      unrealized_pnl_pct: perf?.unrealized_pnl_pct,
+      risk_score: riskPos?.risk_score,
+      risk_level: riskPos?.risk_level,
     }
   })
 
-  const withThesis = enriched.filter((position) => position.notes)
-  const withoutThesis = enriched.filter((position) => !position.notes)
+  const withThesis = enriched.filter((p) => p.notes)
+  const withoutThesis = enriched.filter((p) => !p.notes)
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Investment Journal</h1>
-        <p className="text-gray-500 text-sm mt-1">
-          Record and review your investment theses for each position
+    <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 32px' }}>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, color: '#F0F4FF', letterSpacing: -0.5, marginBottom: 4 }}>
+          Journal
+        </h1>
+        <p style={{ fontSize: 13, color: '#8B96B0' }}>
+          Keep your thinking organized. What did you buy and why?
         </p>
       </div>
 
       {positions.length === 0 ? (
-        <EmptyState
-          title="No positions to journal"
-          description="Add positions to your portfolio to start tracking your investment theses"
-          action={{ label: 'Go to Dashboard', onClick: () => { window.location.href = '/' } }}
-        />
+        <div style={{ textAlign: 'center', padding: '48px 0' }}>
+          <p style={{ fontSize: 14, color: '#4A5568' }}>No positions to journal.</p>
+          <p style={{ fontSize: 12, color: '#4A5568', marginTop: 4 }}>
+            Add positions to your portfolio to start tracking your investment theses.
+          </p>
+        </div>
       ) : (
         <>
-          <div className="flex gap-4 text-xs text-gray-500">
-            <span>{withThesis.length} with thesis</span>
-            <span>{withoutThesis.length} without thesis</span>
-            <span>{positions.length} total positions</span>
+          <div style={{ display: 'flex', gap: 18, marginBottom: 22, alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: '#22c55e', fontWeight: 600 }}>
+              {withThesis.length} with thesis
+            </span>
+            <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.07)', display: 'inline-block' }} />
+            <span style={{ fontSize: 12, color: '#4A5568' }}>{withoutThesis.length} without</span>
+            <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.07)', display: 'inline-block' }} />
+            <span style={{ fontSize: 12, color: '#4A5568' }}>{positions.length} total positions</span>
           </div>
 
-          {withThesis.length > 0 && (
-            <section className="space-y-4">
-              <h2 className="text-sm font-medium text-white flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-500" />
-                With thesis ({withThesis.length})
-              </h2>
-              {withThesis.map((position) => (
-                <ThesisCard
-                  key={position.id}
-                  positionId={position.id}
-                  ticker={position.ticker}
-                  avgBuyPrice={position.avg_buy_price}
-                  currentNotes={position.notes}
-                  unrealizedPnlPct={position.unrealized_pnl_pct}
-                  riskScore={position.risk_score}
-                  riskLevel={position.risk_level}
-                />
-              ))}
-            </section>
-          )}
+          {withThesis.map((pos) => (
+            <ThesisCard
+              key={pos.id}
+              positionId={pos.id}
+              ticker={pos.ticker}
+              avgBuyPrice={pos.avg_buy_price}
+              shares={pos.shares}
+              currentNotes={pos.notes}
+              unrealizedPnlPct={pos.unrealized_pnl_pct}
+              riskScore={pos.risk_score}
+              riskLevel={pos.risk_level}
+            />
+          ))}
 
           {withoutThesis.length > 0 && (
-            <section className="space-y-4">
-              <h2 className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-gray-600" />
-                Without thesis ({withoutThesis.length})
-              </h2>
-              {withoutThesis.map((position) => (
+            <>
+              <div style={{ margin: '16px 0', height: 1, background: 'rgba(255,255,255,0.07)' }} />
+              <p style={{ fontSize: 11, color: '#4A5568', marginBottom: 12, fontStyle: 'italic' }}>
+                These positions don&apos;t have a thesis yet. What were you thinking?
+              </p>
+              {withoutThesis.map((pos) => (
                 <ThesisCard
-                  key={position.id}
-                  positionId={position.id}
-                  ticker={position.ticker}
-                  avgBuyPrice={position.avg_buy_price}
-                  currentNotes={position.notes}
-                  unrealizedPnlPct={position.unrealized_pnl_pct}
-                  riskScore={position.risk_score}
-                  riskLevel={position.risk_level}
+                  key={pos.id}
+                  positionId={pos.id}
+                  ticker={pos.ticker}
+                  avgBuyPrice={pos.avg_buy_price}
+                  shares={pos.shares}
+                  currentNotes={pos.notes}
+                  unrealizedPnlPct={pos.unrealized_pnl_pct}
+                  riskScore={pos.risk_score}
+                  riskLevel={pos.risk_level}
                 />
               ))}
-            </section>
+            </>
           )}
         </>
       )}

@@ -1,65 +1,15 @@
 'use client'
 
 import { DecisionNote } from '@/components/decisions/DecisionNote'
-import { EmptyState } from '@/components/ui/EmptyState'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { usePortfolio, usePortfolioPerformance, usePortfolioRisk, usePortfolios } from '@/lib/hooks'
 import type { PerformanceData, Portfolio, PortfolioRiskSummary, Position } from '@/lib/types'
 
 interface EnrichedPosition extends Position {
   unrealized_pnl_pct?: number
+  unrealized_pnl_abs?: number
   current_price?: number
   risk_score?: number
-}
-
-function PositionSection({
-  title,
-  count,
-  color,
-  positions,
-}: {
-  title: string
-  count: number
-  color: 'green' | 'red' | 'gray'
-  positions: EnrichedPosition[]
-}) {
-  const colorMap = {
-    green: {
-      text: 'text-green-400',
-      dot: 'bg-green-400',
-    },
-    red: {
-      text: 'text-red-400',
-      dot: 'bg-red-400',
-    },
-    gray: {
-      text: 'text-gray-500',
-      dot: 'bg-gray-500',
-    },
-  }
-  const styles = colorMap[color]
-
-  return (
-    <section>
-      <h2 className={`text-sm font-medium ${styles.text} uppercase tracking-wider mb-3 flex items-center gap-2`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${styles.dot}`} />
-        {title} ({count})
-      </h2>
-      <div className="space-y-3">
-        {positions.map((position) => (
-          <DecisionNote
-            key={position.id}
-            positionId={position.id}
-            ticker={position.ticker}
-            avgBuyPrice={position.avg_buy_price}
-            notes={position.notes}
-            currentPnlPct={position.unrealized_pnl_pct}
-            riskScore={position.risk_score}
-          />
-        ))}
-      </div>
-    </section>
-  )
 }
 
 export default function DecisionsPage() {
@@ -78,7 +28,7 @@ export default function DecisionsPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto px-6 py-8 flex justify-center">
+      <div style={{ maxWidth: 760, margin: '0 auto', padding: '28px 32px', display: 'flex', justifyContent: 'center' }}>
         <LoadingSpinner />
       </div>
     )
@@ -88,74 +38,110 @@ export default function DecisionsPage() {
   const performancePositions = performance?.positions || []
   const riskPositions = risk?.positions || []
 
-  const enrichedPositions: EnrichedPosition[] = positions.map((position) => {
-    const performancePosition = performancePositions.find((item) => item.ticker === position.ticker)
-    const riskPosition = riskPositions.find((item) => item.ticker === position.ticker)
+  const enriched: EnrichedPosition[] = positions.map((pos) => {
+    const perf = performancePositions.find((item) => item.ticker === pos.ticker)
+    const riskPos = riskPositions.find((item) => item.ticker === pos.ticker)
+    const pnlAbs = perf?.current_price && pos.shares
+      ? (perf.current_price - pos.avg_buy_price) * pos.shares
+      : undefined
     return {
-      ...position,
-      unrealized_pnl_pct: performancePosition?.unrealized_pnl_pct,
-      current_price: performancePosition?.current_price,
-      risk_score: riskPosition?.risk_score,
+      ...pos,
+      unrealized_pnl_pct: perf?.unrealized_pnl_pct,
+      unrealized_pnl_abs: pnlAbs,
+      current_price: perf?.current_price,
+      risk_score: riskPos?.risk_score,
     }
   })
 
-  const profitable = enrichedPositions
-    .filter((position) => position.unrealized_pnl_pct != null && position.unrealized_pnl_pct > 0)
+  const profitable = enriched
+    .filter((p) => p.unrealized_pnl_pct != null && p.unrealized_pnl_pct > 0)
     .sort((a, b) => (b.unrealized_pnl_pct || 0) - (a.unrealized_pnl_pct || 0))
-  const losing = enrichedPositions
-    .filter((position) => position.unrealized_pnl_pct != null && position.unrealized_pnl_pct < 0)
+  const losing = enriched
+    .filter((p) => p.unrealized_pnl_pct != null && p.unrealized_pnl_pct < 0)
     .sort((a, b) => (a.unrealized_pnl_pct || 0) - (b.unrealized_pnl_pct || 0))
-  const unknown = enrichedPositions.filter((position) => position.unrealized_pnl_pct == null)
+  const unknown = enriched.filter((p) => p.unrealized_pnl_pct == null)
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Decision History</h1>
-        <p className="text-gray-500 text-sm mt-1">
-          Track your investment theses and see how each position is performing
+    <div style={{ maxWidth: 760, margin: '0 auto', padding: '28px 32px' }}>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, color: '#F0F4FF', letterSpacing: -0.5, marginBottom: 4 }}>
+          Decisions
+        </h1>
+        <p style={{ fontSize: 13, color: '#8B96B0' }}>
+          Your positions and the thinking behind them
         </p>
       </div>
 
       {positions.length === 0 ? (
-        <EmptyState
-          title="No positions yet"
-          description="Add positions to start tracking your decisions"
-          action={{ label: 'Go to Dashboard', onClick: () => { window.location.href = '/' } }}
-        />
+        <div style={{ textAlign: 'center', padding: '48px 0' }}>
+          <p style={{ fontSize: 14, color: '#4A5568' }}>No positions yet.</p>
+          <p style={{ fontSize: 12, color: '#4A5568', marginTop: 4 }}>
+            Add positions to your portfolio to start tracking decisions.
+          </p>
+        </div>
       ) : (
         <>
-          {profitable.length > 0 && (
-            <PositionSection
-              title="Profitable"
-              count={profitable.length}
-              color="green"
-              positions={profitable}
-            />
-          )}
-
-          {losing.length > 0 && (
-            <PositionSection
-              title="Losing"
-              count={losing.length}
-              color="red"
-              positions={losing}
-            />
-          )}
-
-          {unknown.length > 0 && (
-            <PositionSection
-              title="Price unavailable"
-              count={unknown.length}
-              color="gray"
-              positions={unknown}
-            />
-          )}
-
-          <div className="pt-4 border-t border-gray-800">
-            <p className="text-gray-600 text-xs text-center">
-              Click any position to expand and view your investment thesis. Add notes when creating positions to track your reasoning.
-            </p>
+          <div style={{ display: 'flex', gap: 20, marginBottom: 20 }}>
+            <span style={{ fontSize: 12, color: '#22c55e', fontWeight: 500 }}>
+              ↑ {profitable.length} profitable
+            </span>
+            <span style={{ fontSize: 12, color: '#f43f5e', fontWeight: 500 }}>
+              ↓ {losing.length} losing
+            </span>
+            <span style={{ fontSize: 12, color: '#4A5568' }}>
+              {positions.length} total
+            </span>
           </div>
+
+          {profitable.map((pos) => (
+            <DecisionNote
+              key={pos.id}
+              positionId={pos.id}
+              ticker={pos.ticker}
+              avgBuyPrice={pos.avg_buy_price}
+              shares={pos.shares}
+              currentPrice={pos.current_price}
+              notes={pos.notes}
+              currentPnlPct={pos.unrealized_pnl_pct}
+              currentPnlAbs={pos.unrealized_pnl_abs}
+              riskScore={pos.risk_score}
+            />
+          ))}
+
+          {losing.length > 0 && profitable.length > 0 && (
+            <div style={{ margin: '8px 0 16px', height: 1, background: 'rgba(255,255,255,0.07)' }} />
+          )}
+
+          {losing.map((pos) => (
+            <DecisionNote
+              key={pos.id}
+              positionId={pos.id}
+              ticker={pos.ticker}
+              avgBuyPrice={pos.avg_buy_price}
+              shares={pos.shares}
+              currentPrice={pos.current_price}
+              notes={pos.notes}
+              currentPnlPct={pos.unrealized_pnl_pct}
+              currentPnlAbs={pos.unrealized_pnl_abs}
+              riskScore={pos.risk_score}
+            />
+          ))}
+
+          {unknown.length > 0 && (profitable.length > 0 || losing.length > 0) && (
+            <div style={{ margin: '8px 0 16px', height: 1, background: 'rgba(255,255,255,0.07)' }} />
+          )}
+
+          {unknown.map((pos) => (
+            <DecisionNote
+              key={pos.id}
+              positionId={pos.id}
+              ticker={pos.ticker}
+              avgBuyPrice={pos.avg_buy_price}
+              shares={pos.shares}
+              notes={pos.notes}
+              riskScore={pos.risk_score}
+            />
+          ))}
         </>
       )}
     </div>

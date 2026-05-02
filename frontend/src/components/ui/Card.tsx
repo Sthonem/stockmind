@@ -1,11 +1,26 @@
+import { CSSProperties } from 'react'
+
 interface CardProps {
   children: React.ReactNode
   className?: string
+  style?: CSSProperties
+  onClick?: () => void
 }
 
-export function Card({ children, className = '' }: CardProps) {
+export function Card({ children, className = '', style = {}, onClick }: CardProps) {
   return (
-    <div className={`bg-gray-900 border border-gray-800 rounded-xl p-6 ${className}`}>
+    <div
+      onClick={onClick}
+      style={{
+        background: '#0E1420',
+        border: '1px solid rgba(255,255,255,0.07)',
+        borderRadius: 14,
+        padding: '18px 20px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.04)',
+        ...style,
+      }}
+      className={className}
+    >
       {children}
     </div>
   )
@@ -16,24 +31,34 @@ export function MetricCard({
   value,
   sub,
   color = 'white',
+  icon,
 }: {
   label: string
   value: string | number
   sub?: string
   color?: 'white' | 'green' | 'red' | 'yellow'
+  icon?: string
 }) {
-  const colorMap = {
-    white: 'text-white',
-    green: 'text-green-400',
-    red: 'text-red-400',
-    yellow: 'text-yellow-400',
+  const colorMap: Record<string, string> = {
+    white: '#F0F4FF',
+    green: '#22c55e',
+    red: '#f43f5e',
+    yellow: '#f59e0b',
   }
 
   return (
-    <div className="bg-gray-800 rounded-lg p-4">
-      <p className="text-gray-400 text-sm mb-1">{label}</p>
-      <p className={`text-2xl font-semibold ${colorMap[color]}`}>{value}</p>
-      {sub ? <p className="text-gray-500 text-xs mt-2">{sub}</p> : null}
+    <div style={{
+      background: '#141C2B',
+      border: '1px solid rgba(255,255,255,0.07)',
+      borderRadius: 12,
+      padding: '14px 16px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <p style={{ fontSize: 11, color: '#8B96B0', fontWeight: 500 }}>{label}</p>
+        {icon && <span style={{ fontSize: 14, opacity: 0.6 }}>{icon}</span>}
+      </div>
+      <p style={{ fontSize: 22, fontWeight: 700, color: colorMap[color] || '#F0F4FF', letterSpacing: -0.5 }}>{value}</p>
+      {sub ? <p style={{ fontSize: 11, color: '#4A5568', marginTop: 3 }}>{sub}</p> : null}
     </div>
   )
 }

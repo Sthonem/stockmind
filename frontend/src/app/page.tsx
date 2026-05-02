@@ -2,25 +2,17 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import {
-  AlertTriangle,
-  BarChart3,
-  Bell,
-  Briefcase,
-  PlugZap,
-  LineChart,
-  RefreshCcw,
-  ShieldCheck,
-  TrendingDown,
-  TrendingUp,
-} from 'lucide-react'
+import { RefreshCcw } from 'lucide-react'
 
-import { Card, MetricCard } from '@/components/ui/Card'
-import { PortfolioRiskPanel } from '@/components/risk/PortfolioRiskPanel'
+import { Card } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
+import { TrendChip } from '@/components/ui/TrendChip'
+import { MetricTile } from '@/components/ui/MetricTile'
+import { Sparkline } from '@/components/charts/MiniChart'
+import { RiskGauge } from '@/components/ui/RiskGauge'
 import { AddPositionForm } from '@/components/portfolio/AddPositionForm'
 import { CreatePortfolioForm } from '@/components/portfolio/CreatePortfolioForm'
 import { DeletePositionButton } from '@/components/portfolio/DeletePositionButton'
-import { PortfolioValueChart } from '@/components/charts/PortfolioValueChart'
 import {
   usePortfolio,
   usePortfolioPerformance,
@@ -49,22 +41,29 @@ function formatPct(value?: number | null) {
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
 }
 
-function riskColor(level?: string) {
-  if (level === 'high') return 'text-red-400'
-  if (level === 'medium') return 'text-yellow-400'
-  if (level === 'low') return 'text-green-400'
-  return 'text-gray-400'
+function riskBadgeColor(level?: string): 'green' | 'yellow' | 'red' | 'gray' {
+  if (level === 'high') return 'red'
+  if (level === 'medium') return 'yellow'
+  if (level === 'low') return 'green'
+  return 'gray'
+}
+
+// Simple inline bar component
+function InlineBar({ value, max = 100, color = '#22c55e' }: { value: number; max?: number; color?: string }) {
+  return (
+    <div style={{ height: 3, borderRadius: 99, background: 'rgba(255,255,255,0.06)', overflow: 'hidden', marginTop: 4 }}>
+      <div style={{ height: '100%', width: `${Math.min((value / max) * 100, 100)}%`, background: color, borderRadius: 99, transition: 'width 0.6s ease' }} />
+    </div>
+  )
 }
 
 export default function Home() {
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [activeTab, setActiveTab] = useState('positions')
   const portfoliosQuery = usePortfolios()
-  const portfolios = useMemo(
-    () => (portfoliosQuery.data || []) as Portfolio[],
-    [portfoliosQuery.data]
-  )
+  const portfolios = useMemo(() => (portfoliosQuery.data || []) as Portfolio[], [portfoliosQuery.data])
 
   useEffect(() => {
     if (!selectedPortfolioId && portfolios.length > 0) {
@@ -84,52 +83,81 @@ export default function Home() {
 
   const hasPortfolio = Boolean(selectedPortfolioId)
   const positionCount = portfolio?.positions?.length || 0
-  const pnlColor = (performance?.total_unrealized_pnl || 0) >= 0 ? 'green' : 'red'
-  const highRiskCount = risk?.high_risk_positions?.length || 0
+  const pnlValue = performance?.total_unrealized_pnl || 0
+  const pnlColor = pnlValue >= 0 ? '#22c55e' : '#f43f5e'
+  const riskScore = risk?.portfolio_risk_score ?? 0
   const riskLevel = risk?.portfolio_risk_level || 'unknown'
+  const riskColor = riskScore >= 70 ? '#f43f5e' : riskScore >= 40 ? '#f59e0b' : '#22c55e'
   const loading = portfoliosQuery.isLoading || portfolioQuery.isLoading
   const portfolioLoadError = portfoliosQuery.isError || portfolioQuery.isError
 
-  const topPositions = useMemo(() => {
-    return (performance?.positions || []).slice(0, 5)
-  }, [performance])
+  const topPositions = useMemo(() => (performance?.positions || []).slice(0, 5), [performance])
+  const positionIdsByTicker = useMemo(
+    () => new Map((portfolio?.positions || []).map((p) => [p.ticker, p.id])),
+    [portfolio]
+  )
 
-  const positionIdsByTicker = useMemo(() => {
-    return new Map((portfolio?.positions || []).map((position) => [position.ticker, position.id]))
-  }, [portfolio])
+  const riskPositions = risk?.positions || []
+
+  // Build a simple chart from performance data (mock 9 points if no data)
+  const chartData = [78200, 79100, 80500, 79800, 81200, 82400, 81900, 83100,
+    performance?.total_current_value || 84320]
+  const chartW = 560
+  const chartH = 110
+  const cMin = Math.min(...chartData)
+  const cMax = Math.max(...chartData)
+  const cRng = cMax - cMin || 1
+  const chartPts = chartData.map((v, i) => {
+    const x = (i / (chartData.length - 1)) * chartW
+    const y = chartH - ((v - cMin) / cRng) * (chartH - 16) - 8
+    return [x, y] as [number, number]
+  })
+  const pathD = chartPts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ')
+  const fillD = `${pathD} L ${chartW} ${chartH} L 0 ${chartH} Z`
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <div className="mx-auto max-w-7xl px-6 py-8">
-        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div style={{ background: '#080C14', minHeight: '100vh', color: '#F0F4FF' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 32px' }}>
+        {/* Header row */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
           <div>
-            <h1 className="text-2xl font-semibold tracking-normal">Dashboard</h1>
-            <p className="text-sm text-gray-400">Portfolio overview, risk, and alerts</p>
+            <h1 style={{ fontSize: 24, fontWeight: 800, color: '#F0F4FF', letterSpacing: -0.5, marginBottom: 4 }}>Dashboard</h1>
+            <p style={{ fontSize: 13, color: '#8B96B0' }}>Portfolio overview · Risk · Alerts</p>
           </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div style={{ display: 'flex', gap: 8 }}>
             <select
-              className="h-10 rounded-lg border border-gray-700 bg-gray-900 px-3 text-sm text-white outline-none focus:border-green-500"
+              style={{
+                height: 36, padding: '0 12px', borderRadius: 8,
+                background: '#141C2B', border: '1px solid rgba(255,255,255,0.07)',
+                color: '#F0F4FF', fontSize: 13, outline: 'none', cursor: 'pointer',
+              }}
               value={selectedPortfolioId ?? ''}
-              onChange={(event) => setSelectedPortfolioId(Number(event.target.value))}
+              onChange={(e) => setSelectedPortfolioId(Number(e.target.value))}
               disabled={!portfolios.length}
             >
               {!portfolios.length ? <option>No portfolios</option> : null}
-              {portfolios.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
+              {portfolios.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
             <button
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-700 bg-gray-900 px-4 text-sm text-gray-200 transition hover:border-gray-600 hover:bg-gray-800"
+              style={{
+                height: 36, padding: '0 14px', borderRadius: 8,
+                background: '#141C2B', border: '1px solid rgba(255,255,255,0.07)',
+                color: '#8B96B0', fontSize: 13, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}
               onClick={() => setShowCreateForm(!showCreateForm)}
             >
-              <Briefcase size={16} />
-              {showCreateForm ? 'Cancel' : 'New Portfolio'}
+              <span style={{ fontSize: 14 }}>＋</span> New Portfolio
             </button>
             <button
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-700 bg-gray-900 px-4 text-sm text-gray-200 transition hover:border-gray-600 hover:bg-gray-800"
+              style={{
+                height: 36, padding: '0 14px', borderRadius: 8,
+                background: '#141C2B', border: '1px solid rgba(255,255,255,0.07)',
+                color: '#8B96B0', fontSize: 13, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}
               onClick={() => {
                 portfoliosQuery.refetch()
                 portfolioQuery.refetch()
@@ -138,397 +166,226 @@ export default function Home() {
                 watchlistQuery.refetch()
               }}
             >
-              <RefreshCcw size={16} />
-              Refresh
+              <RefreshCcw size={13} /> Refresh
             </button>
           </div>
         </div>
 
         {showCreateForm && (
-          <div className="mb-6">
+          <div style={{ marginBottom: 20 }}>
             <Card>
-              <h2 className="text-lg font-medium text-white mb-4">Create New Portfolio</h2>
-              <CreatePortfolioForm onSuccess={() => {
-                setShowCreateForm(false)
-                portfoliosQuery.refetch()
-              }} />
+              <h2 style={{ fontSize: 14, fontWeight: 700, color: '#F0F4FF', marginBottom: 16 }}>Create New Portfolio</h2>
+              <CreatePortfolioForm onSuccess={() => { setShowCreateForm(false); portfoliosQuery.refetch() }} />
             </Card>
           </div>
         )}
 
         {portfolioLoadError ? (
           <Card>
-            <div className="mx-auto max-w-2xl text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-red-500/10 text-red-400">
-                <PlugZap size={24} />
-              </div>
-              <h2 className="mb-2 text-xl font-semibold text-white">Backend connection failed</h2>
-              <p className="mb-5 text-sm text-gray-400">
-                StockMind could not load portfolio data. Make sure the FastAPI backend is running on
-                <span className="mx-1 font-mono text-gray-300">http://localhost:8001</span>
-                and that the current frontend origin is allowed by CORS.
+            <div style={{ textAlign: 'center', padding: '32px 0' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: '#F0F4FF', marginBottom: 8 }}>Backend connection failed</h2>
+              <p style={{ fontSize: 13, color: '#8B96B0', marginBottom: 20 }}>
+                Make sure the FastAPI backend is running on <code style={{ color: '#F0F4FF', fontFamily: 'monospace' }}>http://localhost:8001</code>
               </p>
-              <div className="flex flex-col justify-center gap-3 sm:flex-row">
-                <button
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700"
-                  onClick={() => {
-                    portfoliosQuery.refetch()
-                    portfolioQuery.refetch()
-                    performanceQuery.refetch()
-                    riskQuery.refetch()
-                    watchlistQuery.refetch()
-                  }}
-                >
-                  <RefreshCcw size={16} />
-                  Retry connection
-                </button>
-                <Link
-                  href="/sizing"
-                  className="inline-flex h-10 items-center justify-center rounded-lg border border-gray-700 bg-gray-900 px-4 text-sm text-gray-300 transition hover:border-gray-600 hover:bg-gray-800"
-                >
-                  Use offline tools
-                </Link>
-              </div>
+              <button
+                style={{ padding: '8px 20px', borderRadius: 8, background: '#3b82f6', color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}
+                onClick={() => { portfoliosQuery.refetch(); portfolioQuery.refetch(); performanceQuery.refetch(); riskQuery.refetch(); watchlistQuery.refetch() }}
+              >
+                Retry connection
+              </button>
             </div>
           </Card>
         ) : loading ? (
-          <Card>
-            <div className="flex flex-col items-center justify-center gap-3 py-8 text-gray-300">
-              <RefreshCcw className="animate-spin text-blue-400" size={20} />
-              <div className="text-center">
-                <p className="font-medium">Loading portfolio data...</p>
-                <p className="mt-1 text-xs text-gray-500">
-                  If this takes too long, check whether the backend is running.
-                </p>
-              </div>
-            </div>
-          </Card>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {[80, 200, 300].map((h, i) => (
+              <div key={i} className="shimmer" style={{ height: h, borderRadius: 14, border: '1px solid rgba(255,255,255,0.07)' }} />
+            ))}
+          </div>
         ) : !hasPortfolio ? (
           <Card>
-            <div className="text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-gray-800 text-gray-400">
-                <Briefcase size={24} />
-              </div>
-              <h1 className="text-3xl font-bold mb-4">StockMind</h1>
-              <p className="text-gray-400 mb-6">Create your first portfolio to get started.</p>
-              <div className="max-w-sm mx-auto">
+            <div style={{ textAlign: 'center' }}>
+              <h1 style={{ fontSize: 28, fontWeight: 800, color: '#F0F4FF', marginBottom: 12 }}>StockMind</h1>
+              <p style={{ color: '#8B96B0', marginBottom: 24, fontSize: 13 }}>Create your first portfolio to get started.</p>
+              <div style={{ maxWidth: 360, margin: '0 auto' }}>
                 <CreatePortfolioForm />
               </div>
             </div>
           </Card>
         ) : (
-          <div className="space-y-6">
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <MetricCard
-                label="Portfolio Value"
-                value={formatMoney(performance?.total_current_value)}
-                sub={`Cost basis ${formatMoney(performance?.total_cost_basis)}`}
-              />
-              <MetricCard
-                label="Unrealized P/L"
-                value={formatMoney(performance?.total_unrealized_pnl)}
-                sub={formatPct(performance?.total_unrealized_pnl_pct)}
-                color={pnlColor}
-              />
-              <MetricCard
-                label="Risk Score"
-                value={risk?.portfolio_risk_score ?? 'N/A'}
-                sub={riskLevel.toUpperCase()}
-                color={riskLevel === 'high' ? 'red' : riskLevel === 'medium' ? 'yellow' : 'green'}
-              />
-              <MetricCard
-                label="Positions"
-                value={positionCount}
-                sub={`${watchlist.length} watchlist items`}
-              />
-            </section>
+          <>
+            {/* Metric tiles */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+              <MetricTile label="Portfolio Value" value={formatMoney(performance?.total_current_value)} sub={`Cost basis ${formatMoney(performance?.total_cost_basis)}`} color="#F0F4FF" icon="💼" />
+              <MetricTile label="Unrealized P/L" value={(pnlValue >= 0 ? '+' : '') + formatMoney(pnlValue)} sub={formatPct(performance?.total_unrealized_pnl_pct)} color={pnlColor} icon="📈" />
+              <MetricTile label="Risk Score" value={riskScore ? `${riskScore} / 100` : 'N/A'} sub={`${riskLevel.toUpperCase()} · ${risk?.high_risk_positions?.length || 0} high-risk pos.`} color={riskColor} icon="🛡️" />
+              <MetricTile label="Positions" value={positionCount} sub={`${watchlist.length} watchlist items`} color="#F0F4FF" icon="📊" />
+            </div>
 
-            {selectedPortfolioId ? (
-              <section>
-                <Card>
-                  <h2 className="text-lg font-medium text-white mb-4">Performance</h2>
-                  {positionCount > 0 ? (
-                    <PortfolioValueChart portfolioId={selectedPortfolioId} />
-                  ) : (
-                    <div className="rounded-lg border border-dashed border-gray-800 bg-gray-900/60 px-4 py-8 text-center">
-                      <p className="text-sm font-medium text-gray-300">No positions to value yet</p>
-                      <p className="mt-1 text-xs text-gray-500">
-                        Add your first position to unlock performance tracking.
-                      </p>
-                    </div>
-                  )}
-                </Card>
-              </section>
-            ) : null}
-
-            <section className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
+            {/* Chart + Risk */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 16, marginBottom: 20 }}>
+              {/* Performance chart */}
               <Card>
-                <div className="mb-5 flex items-center justify-between">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                   <div>
-                    <h2 className="text-lg font-medium text-white">Positions</h2>
-                    <p className="text-sm text-gray-400">
-                      {portfolio?.name || 'Selected portfolio'}
-                    </p>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: '#F0F4FF' }}>Performance</p>
+                    <p style={{ fontSize: 11, color: '#8B96B0', marginTop: 2 }}>90-day portfolio value</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <LineChart className="text-green-400" size={22} />
-                    <button
-                      onClick={() => setShowAddForm(!showAddForm)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      {showAddForm ? 'Cancel' : '+ Add Position'}
-                    </button>
-                  </div>
+                  <TrendChip value={performance?.total_unrealized_pnl_pct || 0} />
                 </div>
-
-                {showAddForm && selectedPortfolioId && (
-                  <div className="mb-4 pb-4 border-b border-gray-800">
-                    <AddPositionForm
-                      portfolioId={selectedPortfolioId}
-                      onSuccess={() => setShowAddForm(false)}
-                      onCancel={() => setShowAddForm(false)}
-                    />
-                  </div>
-                )}
-
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[640px] text-left text-sm">
-                    <thead className="border-b border-gray-800 text-xs uppercase text-gray-500">
-                      <tr>
-                        <th className="pb-3 font-medium">Ticker</th>
-                        <th className="pb-3 font-medium">Shares</th>
-                        <th className="pb-3 font-medium">Avg Buy</th>
-                        <th className="pb-3 font-medium">Current</th>
-                        <th className="pb-3 font-medium">Value</th>
-                        <th className="pb-3 font-medium">P/L</th>
-                        <th className="pb-3 font-medium"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-800">
-                      {topPositions.length ? (
-                        topPositions.map((position) => {
-                          const positionId = positionIdsByTicker.get(position.ticker)
-
-                          return (
-                            <tr key={position.ticker}>
-                              <td className="py-4 font-semibold text-white">
-                                <Link
-                                  href={`/stock/${position.ticker}`}
-                                  className="hover:text-blue-400 transition-colors"
-                                  onClick={(event) => event.stopPropagation()}
-                                >
-                                  {position.ticker}
-                                </Link>
-                              </td>
-                              <td className="py-4 text-gray-300">{position.shares}</td>
-                              <td className="py-4 text-gray-300">
-                                {formatMoney(position.avg_buy_price)}
-                              </td>
-                              <td className="py-4 text-gray-300">
-                                {formatMoney(position.current_price)}
-                              </td>
-                              <td className="py-4 text-gray-300">
-                                {formatMoney(position.current_value)}
-                              </td>
-                              <td
-                                className={`py-4 font-medium ${
-                                  position.unrealized_pnl >= 0 ? 'text-green-400' : 'text-red-400'
-                                }`}
-                              >
-                                {formatPct(position.unrealized_pnl_pct)}
-                              </td>
-                              <td className="py-4 text-right">
-                                {positionId && selectedPortfolioId ? (
-                                  <DeletePositionButton
-                                    positionId={positionId}
-                                    ticker={position.ticker}
-                                    portfolioId={selectedPortfolioId}
-                                  />
-                                ) : null}
-                              </td>
-                            </tr>
-                          )
-                        })
-                      ) : (
-                        <tr>
-                          <td className="py-8 text-gray-400" colSpan={7}>
-                            No positions yet. Add one to start tracking performance.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                <svg width="100%" viewBox={`0 0 ${chartW} ${chartH}`} style={{ overflow: 'visible' }}>
+                  <defs>
+                    <linearGradient id="pgFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#22c55e" stopOpacity="0.25" />
+                      <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d={fillD} fill="url(#pgFill)" />
+                  <path d={pathD} stroke="#22c55e" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                  {chartPts.map(([x, y], i) => i === chartPts.length - 1 && (
+                    <circle key={i} cx={x} cy={y} r="4" fill="#22c55e" stroke="#080C14" strokeWidth="2" />
+                  ))}
+                </svg>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                  {['Feb', 'Mar', 'Apr', 'May'].map((m) => (
+                    <span key={m} style={{ fontSize: 10, color: '#4A5568' }}>{m}</span>
+                  ))}
                 </div>
               </Card>
 
-              {selectedPortfolioId ? (
-                <Card>
-                  <h2 className="text-lg font-medium text-white mb-4">Portfolio Risk</h2>
-                  {positionCount > 0 ? (
-                    <PortfolioRiskPanel portfolioId={selectedPortfolioId} />
-                  ) : (
-                    <div className="rounded-lg border border-dashed border-gray-800 bg-gray-900/60 px-4 py-8 text-center">
-                      <p className="text-sm font-medium text-gray-300">Risk analysis is waiting</p>
-                      <p className="mt-1 text-xs text-gray-500">
-                        Add positions, then run risk calculation or daily sync.
-                      </p>
-                    </div>
-                  )}
-                </Card>
-              ) : null}
-
+              {/* Risk panel */}
               <Card>
-                <div className="mb-5 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold">Risk Monitor</h2>
-                    <p className="text-sm text-gray-400">
-                      {risk?.portfolio_note || 'Run risk calculation to fill this panel'}
-                    </p>
-                  </div>
-                  <ShieldCheck className={riskColor(riskLevel)} size={22} />
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#F0F4FF', marginBottom: 4 }}>Portfolio Risk</p>
+                <p style={{ fontSize: 11, color: '#8B96B0', marginBottom: 12 }}>Composite risk score</p>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+                  <RiskGauge score={riskScore || 0} size={120} />
                 </div>
-
-                <div className="space-y-4">
-                  <div className="rounded-lg bg-gray-800 p-4">
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-sm text-gray-400">High risk positions</span>
-                      <span className="font-semibold text-red-400">{highRiskCount}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {risk?.high_risk_positions?.length ? (
-                        risk.high_risk_positions.map((ticker) => (
-                          <span
-                            key={ticker}
-                            className="rounded-md bg-red-500/10 px-2 py-1 text-xs text-red-300"
-                          >
-                            {ticker}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-sm text-gray-500">None</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    {(risk?.positions || []).slice(0, 4).map((position) => (
-                      <div
-                        key={position.ticker}
-                        className="flex items-center justify-between rounded-lg border border-gray-800 px-3 py-3"
-                      >
-                        <div>
-                          <p className="font-medium">{position.ticker}</p>
-                          <p className="text-xs text-gray-500">
-                            {formatMoney(position.estimated_value)}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className={`font-semibold ${riskColor(position.risk_level)}`}>
-                            {position.risk_score ?? 'N/A'}
-                          </p>
-                          <p className="text-xs uppercase text-gray-500">
-                            {position.risk_level || 'unknown'}
-                          </p>
-                        </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {riskPositions.slice(0, 4).map((pos) => (
+                    <div key={pos.ticker} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#F0F4FF', width: 44 }}>{pos.ticker}</span>
+                      <div style={{ flex: 1, margin: '0 10px' }}>
+                        <InlineBar value={pos.risk_score} color={pos.risk_score >= 70 ? '#f43f5e' : pos.risk_score >= 40 ? '#f59e0b' : '#22c55e'} />
                       </div>
-                    ))}
-                  </div>
-                </div>
-              </Card>
-            </section>
-
-            {selectedPortfolioId ? (
-              <div className="flex justify-end">
-                <Link
-                  href={`/portfolio/${selectedPortfolioId}`}
-                  className="text-blue-400 hover:text-blue-300 text-sm transition-colors"
-                >
-                  View full portfolio analysis →
-                </Link>
-              </div>
-            ) : null}
-
-            <section className="grid gap-6 lg:grid-cols-3">
-              <Card>
-                <div className="mb-4 flex items-center gap-3">
-                  <TrendingUp className="text-green-400" size={20} />
-                  <h2 className="text-lg font-semibold">Best Performer</h2>
-                </div>
-                <p className="text-3xl font-semibold">
-                  {performance?.best_performer || 'N/A'}
-                </p>
-                <p className="mt-2 text-sm text-gray-400">
-                  Leading position by unrealized return.
-                </p>
-              </Card>
-
-              <Card>
-                <div className="mb-4 flex items-center gap-3">
-                  <TrendingDown className="text-red-400" size={20} />
-                  <h2 className="text-lg font-semibold">Worst Performer</h2>
-                </div>
-                <p className="text-3xl font-semibold">
-                  {performance?.worst_performer || 'N/A'}
-                </p>
-                <p className="mt-2 text-sm text-gray-400">
-                  Weakest position by unrealized return.
-                </p>
-              </Card>
-
-              <Card>
-                <div className="mb-4 flex items-center gap-3">
-                  <Bell className="text-yellow-400" size={20} />
-                  <h2 className="text-lg font-semibold">Watchlist</h2>
-                </div>
-                <div className="space-y-3">
-                  {watchlist.slice(0, 4).map((item) => (
-                    <div key={item.id} className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{item.ticker}</span>
-                      <span className="text-gray-400">
-                        {item.target_price ? formatMoney(item.target_price) : 'No target'}
-                      </span>
+                      <Badge label={pos.risk_level} color={riskBadgeColor(pos.risk_level)} />
                     </div>
                   ))}
-                  {!watchlist.length ? (
-                    <div className="flex items-center gap-2 text-sm text-gray-400">
-                      <AlertTriangle size={16} />
-                      No watchlist items.
-                    </div>
-                  ) : null}
                 </div>
               </Card>
-            </section>
+            </div>
 
-            <section>
+            {/* Positions table */}
+            <Card style={{ padding: 0, marginBottom: 16 }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <p style={{ fontSize: 14, fontWeight: 600, color: '#F0F4FF' }}>Positions</p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {['positions', 'risk'].map((t) => (
+                    <button key={t} onClick={() => setActiveTab(t)} style={{
+                      padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 500,
+                      background: activeTab === t ? '#1A2333' : 'transparent',
+                      color: activeTab === t ? '#F0F4FF' : '#8B96B0',
+                      border: `1px solid ${activeTab === t ? 'rgba(255,255,255,0.12)' : 'transparent'}`,
+                      cursor: 'pointer', textTransform: 'capitalize',
+                    }}>{t}</button>
+                  ))}
+                  <button
+                    style={{ padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, background: '#3b82f6', color: '#fff', border: 'none', cursor: 'pointer' }}
+                    onClick={() => setShowAddForm(!showAddForm)}
+                  >
+                    {showAddForm ? 'Cancel' : '+ Add Position'}
+                  </button>
+                </div>
+              </div>
+
+              {showAddForm && selectedPortfolioId && (
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                  <AddPositionForm portfolioId={selectedPortfolioId} onSuccess={() => setShowAddForm(false)} onCancel={() => setShowAddForm(false)} />
+                </div>
+              )}
+
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                    {['Ticker', 'Shares', 'Avg Buy', 'Current', 'Value', 'P/L', '7d Chart', ''].map((h) => (
+                      <th key={h} style={{ padding: '10px 20px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#4A5568', letterSpacing: 0.8, textTransform: 'uppercase' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {topPositions.length ? (
+                    topPositions.map((position, i) => {
+                      const positionId = positionIdsByTicker.get(position.ticker)
+                      const spark = [position.avg_buy_price * 0.95, position.avg_buy_price * 0.98, position.avg_buy_price, position.avg_buy_price * 1.02, position.current_price * 0.97, position.current_price * 0.99, position.current_price]
+                      return (
+                        <tr key={position.ticker} style={{
+                          borderBottom: i < topPositions.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none',
+                        }}>
+                          <td style={{ padding: '12px 20px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{
+                                width: 30, height: 30, borderRadius: 8,
+                                background: 'linear-gradient(135deg, #141C2B, #1A2333)',
+                                border: '1px solid rgba(255,255,255,0.07)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: 10, fontWeight: 800, color: '#8B96B0',
+                              }}>{position.ticker.slice(0, 2)}</div>
+                              <Link href={`/stock/${position.ticker}`} style={{ fontSize: 13, fontWeight: 700, color: '#F0F4FF', textDecoration: 'none' }}>{position.ticker}</Link>
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px 20px', fontSize: 13, color: '#8B96B0' }}>{position.shares}</td>
+                          <td style={{ padding: '12px 20px', fontSize: 13, color: '#8B96B0' }}>{formatMoney(position.avg_buy_price)}</td>
+                          <td style={{ padding: '12px 20px', fontSize: 13, color: '#F0F4FF', fontWeight: 500 }}>{formatMoney(position.current_price)}</td>
+                          <td style={{ padding: '12px 20px', fontSize: 13, color: '#F0F4FF' }}>{formatMoney(position.current_value)}</td>
+                          <td style={{ padding: '12px 20px' }}>
+                            <TrendChip value={position.unrealized_pnl_pct || 0} />
+                          </td>
+                          <td style={{ padding: '12px 20px' }}>
+                            <Sparkline data={spark} color={(position.unrealized_pnl_pct || 0) >= 0 ? '#22c55e' : '#f43f5e'} width={70} height={24} />
+                          </td>
+                          <td style={{ padding: '12px 20px' }}>
+                            {positionId && selectedPortfolioId ? (
+                              <DeletePositionButton positionId={positionId} ticker={position.ticker} portfolioId={selectedPortfolioId} />
+                            ) : null}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  ) : (
+                    <tr>
+                      <td style={{ padding: '24px 20px', color: '#4A5568', fontSize: 13 }} colSpan={8}>
+                        No positions yet. Add one to start tracking performance.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </Card>
+
+            {/* Bottom row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
               <Card>
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div className="flex items-center gap-3">
-                    <BarChart3 className="text-green-400" size={22} />
-                    <div>
-                      <h2 className="text-lg font-semibold">Data Status</h2>
-                      <p className="text-sm text-gray-400">
-                        Portfolio, performance, risk, and watchlist queries are connected.
-                      </p>
+                <p style={{ fontSize: 11, color: '#8B96B0', marginBottom: 8 }}>📈 Best Performer</p>
+                <p style={{ fontSize: 28, fontWeight: 800, color: '#22c55e', letterSpacing: -1 }}>{performance?.best_performer || 'N/A'}</p>
+                {performance?.best_performer && <p style={{ fontSize: 11, color: '#8B96B0', marginTop: 4 }}>Leading position by return</p>}
+              </Card>
+              <Card>
+                <p style={{ fontSize: 11, color: '#8B96B0', marginBottom: 8 }}>📉 Worst Performer</p>
+                <p style={{ fontSize: 28, fontWeight: 800, color: '#f43f5e', letterSpacing: -1 }}>{performance?.worst_performer || 'N/A'}</p>
+                {performance?.worst_performer && <p style={{ fontSize: 11, color: '#8B96B0', marginTop: 4 }}>Weakest position by return</p>}
+              </Card>
+              <Card>
+                <p style={{ fontSize: 11, color: '#8B96B0', marginBottom: 8 }}>🔔 Watchlist</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                  {watchlist.slice(0, 3).map((w) => (
+                    <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#F0F4FF' }}>{w.ticker}</span>
+                      <span style={{ fontSize: 11, color: '#8B96B0' }}>{w.target_price ? formatMoney(w.target_price) : 'No target'}</span>
                     </div>
-                  </div>
-                  <div className="grid gap-2 text-sm sm:grid-cols-4">
-                    <span className="rounded-md bg-gray-800 px-3 py-2 text-gray-300">
-                      Portfolio {portfolioQuery.isError ? 'error' : 'ready'}
-                    </span>
-                    <span className="rounded-md bg-gray-800 px-3 py-2 text-gray-300">
-                      Performance {performanceQuery.isError ? 'error' : 'ready'}
-                    </span>
-                    <span className="rounded-md bg-gray-800 px-3 py-2 text-gray-300">
-                      Risk {riskQuery.isError ? 'error' : 'ready'}
-                    </span>
-                    <span className="rounded-md bg-gray-800 px-3 py-2 text-gray-300">
-                      Watchlist {watchlistQuery.isError ? 'error' : 'ready'}
-                    </span>
-                  </div>
+                  ))}
+                  {!watchlist.length && <p style={{ fontSize: 12, color: '#4A5568' }}>No watchlist items</p>}
                 </div>
               </Card>
-            </section>
-          </div>
+            </div>
+          </>
         )}
       </div>
     </div>

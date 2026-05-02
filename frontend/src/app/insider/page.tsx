@@ -4,7 +4,6 @@ import { useState } from 'react'
 
 import { InsiderPanel } from '@/components/insider/InsiderPanel'
 import { InstitutionalPanel } from '@/components/insider/InstitutionalPanel'
-import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { usePortfolio, usePortfolios } from '@/lib/hooks'
 import type { Portfolio } from '@/lib/types'
@@ -15,16 +14,25 @@ export default function InsiderPage() {
   const portfolioId = portfolios[0]?.id || null
   const { data: portfolioData } = usePortfolio(portfolioId)
   const portfolio = portfolioData as Portfolio | undefined
-  const tickers = portfolio?.positions?.map((position) => position.ticker) || []
+  const tickers = portfolio?.positions?.map((p) => p.ticker) || []
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null)
   const activeTicker = selectedTicker || tickers[0] || null
 
+  const cardStyle = {
+    background: '#0E1420',
+    border: '1px solid rgba(255,255,255,0.07)',
+    borderRadius: 14,
+    padding: '18px 20px',
+  }
+
   return (
-    <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Insider & Institutional</h1>
-        <p className="text-gray-500 text-sm mt-1">
-          SEC filings, institutional ownership, and short interest data
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: '28px 32px' }}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, color: '#F0F4FF', letterSpacing: -0.5, marginBottom: 4 }}>
+          Insider Activity
+        </h1>
+        <p style={{ fontSize: 13, color: '#8B96B0' }}>
+          Track insider trades and institutional movements in your holdings
         </p>
       </div>
 
@@ -36,16 +44,19 @@ export default function InsiderPage() {
         />
       ) : (
         <>
-          <div className="flex flex-wrap gap-2">
+          {/* Ticker tabs */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
             {tickers.map((ticker) => (
               <button
                 key={ticker}
                 onClick={() => setSelectedTicker(ticker)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  activeTicker === ticker
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:text-white'
-                }`}
+                style={{
+                  padding: '6px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  background: activeTicker === ticker ? '#3b82f6' : '#141C2B',
+                  color: activeTicker === ticker ? '#fff' : '#8B96B0',
+                  border: `1px solid ${activeTicker === ticker ? 'transparent' : 'rgba(255,255,255,0.07)'}`,
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}
               >
                 {ticker}
               </button>
@@ -53,19 +64,19 @@ export default function InsiderPage() {
           </div>
 
           {activeTicker && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 16 }}>
+              <div style={cardStyle}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#4A5568', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 16 }}>
                   Insider Activity (SEC Form 4)
-                </h2>
+                </p>
                 <InsiderPanel ticker={activeTicker} />
-              </Card>
-              <Card>
-                <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">
+              </div>
+              <div style={cardStyle}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#4A5568', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 16 }}>
                   Institutional Ownership
-                </h2>
+                </p>
                 <InstitutionalPanel ticker={activeTicker} />
-              </Card>
+              </div>
             </div>
           )}
         </>

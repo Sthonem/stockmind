@@ -55,7 +55,7 @@ export function RiskScoreCard({ ticker }: { ticker: string }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-6">
-        <RiskGauge score={risk.risk?.score || 0} size="md" />
+        <RiskGauge score={risk.risk?.score || 0} size={80} />
         <div className="flex-1">
           <p className="text-white font-semibold text-lg">{ticker}</p>
           <p className="text-gray-400 text-sm">${risk.latest_price?.toFixed(2)}</p>

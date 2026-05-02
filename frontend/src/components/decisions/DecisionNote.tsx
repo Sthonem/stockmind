@@ -1,83 +1,135 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
+import { TrendChip } from '@/components/ui/TrendChip'
+import { Badge } from '@/components/ui/Badge'
 
 interface DecisionNoteProps {
   positionId: number
   ticker: string
   avgBuyPrice: number
+  shares?: number
+  currentPrice?: number
   notes?: string
   currentPnlPct?: number
+  currentPnlAbs?: number
   riskScore?: number
 }
 
 export function DecisionNote({
   ticker,
   avgBuyPrice,
+  shares,
+  currentPrice,
   notes,
   currentPnlPct,
+  currentPnlAbs,
   riskScore,
 }: DecisionNoteProps) {
   const [expanded, setExpanded] = useState(false)
 
-  const pnlColor = currentPnlPct == null ? 'text-gray-400'
-    : currentPnlPct >= 0 ? 'text-green-400' : 'text-red-400'
+  const riskColor = riskScore == null ? '#8B96B0'
+    : riskScore >= 70 ? '#f43f5e'
+    : riskScore >= 40 ? '#f59e0b' : '#22c55e'
 
-  const riskColor = riskScore == null ? 'text-gray-400'
-    : riskScore >= 70 ? 'text-red-400'
-      : riskScore >= 40 ? 'text-yellow-400' : 'text-green-400'
+  const riskBadgeColor = riskScore == null ? 'gray'
+    : riskScore >= 70 ? 'red'
+    : riskScore >= 40 ? 'yellow' : 'green'
+
+  const riskLabel = riskScore == null ? 'unknown'
+    : riskScore >= 70 ? 'high' : riskScore >= 40 ? 'medium' : 'low'
+
+  const pnlColor = currentPnlPct == null ? '#8B96B0'
+    : currentPnlPct >= 0 ? '#22c55e' : '#f43f5e'
+
+  const metricItems = [
+    {
+      label: 'P/L',
+      value: currentPnlPct != null ? `${currentPnlPct >= 0 ? '+' : ''}${currentPnlPct.toFixed(1)}%` : '—',
+      color: pnlColor,
+    },
+    {
+      label: 'Risk score',
+      value: riskScore != null ? `${riskScore}/100` : '—',
+      color: riskColor,
+    },
+    {
+      label: 'Value',
+      value: currentPrice && shares ? `$${(currentPrice * shares).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '—',
+      color: '#F0F4FF',
+    },
+  ]
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-      <div
-        className="flex items-start justify-between gap-4 cursor-pointer"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <div className="flex items-center gap-4 flex-wrap">
-          <div>
-            <span className="text-white font-bold text-base">{ticker}</span>
-            <span className="text-gray-500 text-xs ml-2">avg ${avgBuyPrice?.toFixed(2)}</span>
-          </div>
-          <div className="flex gap-3 text-sm">
-            {currentPnlPct != null && (
-              <span className={`font-medium ${pnlColor}`}>
-                {currentPnlPct >= 0 ? '+' : ''}{currentPnlPct?.toFixed(2)}%
-              </span>
-            )}
-            {riskScore != null && (
-              <span className={`text-xs ${riskColor}`}>
-                Risk: {riskScore?.toFixed(0)}/100
-              </span>
-            )}
-          </div>
+    <div
+      onClick={() => setExpanded(!expanded)}
+      style={{
+        background: '#0E1420',
+        border: `1px solid ${expanded ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)'}`,
+        borderRadius: 14,
+        overflow: 'hidden',
+        cursor: 'pointer',
+        transition: 'border-color 0.15s',
+        marginBottom: 8,
+      }}
+    >
+      {/* Collapsed row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px' }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+          background: '#141C2B', border: '1px solid rgba(255,255,255,0.07)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 11, fontWeight: 900, color: '#8B96B0', letterSpacing: 0.5,
+        }}>
+          {ticker.slice(0, 2)}
         </div>
-        <span className="text-gray-600 text-xs">{expanded ? '▲' : '▼'}</span>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+            <span style={{ fontSize: 15, fontWeight: 800, color: '#F0F4FF' }}>{ticker}</span>
+            {currentPnlPct != null && <TrendChip value={currentPnlPct} />}
+            <Badge label={riskLabel} color={riskBadgeColor as 'red' | 'yellow' | 'green' | 'gray'} />
+          </div>
+          <p style={{ fontSize: 12, color: '#4A5568' }}>
+            {shares != null ? `${shares} shares · ` : ''}avg ${avgBuyPrice?.toFixed(2)}{currentPrice ? ` · now $${currentPrice.toFixed(2)}` : ''}
+          </p>
+        </div>
+
+        {currentPnlAbs != null && (
+          <div style={{ textAlign: 'right', minWidth: 72 }}>
+            <p style={{ fontSize: 14, fontWeight: 800, color: pnlColor }}>
+              {currentPnlAbs >= 0 ? '+' : '−'}${Math.abs(currentPnlAbs).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            </p>
+            <p style={{ fontSize: 10, color: '#4A5568' }}>unrealized</p>
+          </div>
+        )}
+
+        <span style={{
+          fontSize: 16, color: '#4A5568',
+          transform: expanded ? 'rotate(90deg)' : 'none',
+          transition: 'transform 0.2s',
+          display: 'block',
+          flexShrink: 0,
+        }}>›</span>
       </div>
 
+      {/* Expanded section */}
       {expanded && (
-        <div className="mt-3 pt-3 border-t border-gray-800">
-          {notes ? (
-            <div>
-              <p className="text-gray-500 text-xs uppercase tracking-wider mb-2">
-                Investment thesis
-              </p>
-              <p className="text-gray-300 text-sm leading-relaxed">{notes}</p>
-            </div>
-          ) : (
-            <p className="text-gray-600 text-xs italic">
-              No investment thesis recorded. Edit this position to add one.
-            </p>
-          )}
-
-          <div className="mt-3 flex gap-2">
-            <Link
-              href={`/stock/${ticker}`}
-              className="text-blue-400 hover:text-blue-300 text-xs transition-colors"
-            >
-              View analysis →
-            </Link>
+        <div style={{
+          padding: '14px 18px 16px',
+          borderTop: '1px solid rgba(255,255,255,0.07)',
+        }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
+            {metricItems.map((m) => (
+              <div key={m.label} style={{ background: '#141C2B', borderRadius: 9, padding: '10px 12px' }}>
+                <p style={{ fontSize: 10, color: '#4A5568', marginBottom: 4 }}>{m.label}</p>
+                <p style={{ fontSize: 15, fontWeight: 800, color: m.color }}>{m.value}</p>
+              </div>
+            ))}
           </div>
+          <p style={{ fontSize: 13, color: '#8B96B0', lineHeight: 1.75 }}>
+            {notes || 'No investment thesis recorded.'}
+          </p>
         </div>
       )}
     </div>

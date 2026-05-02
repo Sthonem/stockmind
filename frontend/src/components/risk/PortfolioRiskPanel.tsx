@@ -46,7 +46,7 @@ export function PortfolioRiskPanel({ portfolioId }: { portfolioId: number }) {
       <div className="flex flex-col items-center gap-6 sm:flex-row">
         <RiskGauge
           score={risk.portfolio_risk_score || 0}
-          size="lg"
+          size={120}
         />
         <div>
           <p className="text-white font-medium">{risk.portfolio_note}</p>
