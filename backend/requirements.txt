@@ -1,0 +1,32 @@
+# Web framework
+fastapi==0.111.0
+uvicorn==0.30.1
+
+# Database
+sqlalchemy==2.0.30
+aiosqlite==0.20.0
+alembic==1.13.3
+
+# Data & finance
+yfinance>=0.2.40
+pandas>=2.2.2
+numpy>=1.26.4
+pandas-ta>=0.4.0b0
+
+# HTTP client
+httpx==0.27.0
+
+# Environment
+python-dotenv==1.0.1
+
+# Validation
+pydantic==2.7.1
+pydantic-settings==2.3.0
+
+# Scheduling
+apscheduler==3.10.4
+
+# AI
+groq==0.9.0
+greenlet
+asyncpg==0.30.0
