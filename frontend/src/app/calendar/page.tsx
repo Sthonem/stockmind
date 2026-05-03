@@ -174,6 +174,8 @@ export default function CalendarPage() {
                       try {
                         const d = new Date(event.date)
                         if (!Number.isNaN(d.getTime())) {
+                          // If time is midnight (00:00) the event has no scheduled time
+                          if (d.getHours() === 0 && d.getMinutes() === 0) return ''
                           return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
                         }
                       } catch { /* */ }

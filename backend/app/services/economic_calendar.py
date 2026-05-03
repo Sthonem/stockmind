@@ -100,7 +100,9 @@ def fetch_economic_events() -> list:
 
 
 def get_fallback_events() -> list:
-    today = datetime.now()
+    # Use date-only (midnight) so both calendarUpcoming and calendarWeek
+    # produce identical date strings — dedup on the frontend will work correctly.
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     events = []
 
     schedules = [
