@@ -1,3 +1,5 @@
+import re
+
 from pydantic_settings import BaseSettings
 
 
@@ -15,17 +17,23 @@ class Settings(BaseSettings):
         return self.ENVIRONMENT == "production"
 
     @property
+    def is_postgres(self) -> bool:
+        url = self.DATABASE_URL
+        return url.startswith("postgres://") or url.startswith("postgresql://")
+
+    @property
     def async_database_url(self) -> str:
         url = self.DATABASE_URL
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql+asyncpg://", 1)
         elif url.startswith("postgresql://") and "asyncpg" not in url:
             url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        # asyncpg doesn't support sslmode= — convert to ssl=true
-        url = url.replace("?sslmode=require", "?ssl=true")
-        url = url.replace("&sslmode=require", "&ssl=true")
-        url = url.replace("?sslmode=prefer", "?ssl=true")
-        url = url.replace("&sslmode=prefer", "&ssl=true")
+        # Strip all SSL-related query params — we pass ssl=True via connect_args instead
+        url = re.sub(r"[?&]sslmode=[^&]*", "", url)
+        url = re.sub(r"[?&]ssl=[^&]*", "", url)
+        # Clean up dangling ? or & left behind
+        url = re.sub(r"\?$", "", url)
+        url = re.sub(r"\?&", "?", url)
         return url
 
     class Config:

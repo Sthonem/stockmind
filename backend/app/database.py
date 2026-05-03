@@ -3,7 +3,14 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.config import settings
 
-connect_args = {"check_same_thread": False} if "sqlite" in settings.async_database_url else {}
+if "sqlite" in settings.async_database_url:
+    connect_args = {"check_same_thread": False}
+elif settings.is_postgres:
+    # asyncpg requires ssl passed as a connect_arg, not a URL query param
+    connect_args = {"ssl": True}
+else:
+    connect_args = {}
+
 engine = create_async_engine(
     settings.async_database_url,
     echo=False,
