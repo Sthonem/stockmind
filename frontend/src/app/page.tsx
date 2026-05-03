@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { RefreshCcw } from 'lucide-react'
+import { useMutation } from '@tanstack/react-query'
 
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -13,6 +14,7 @@ import { RiskGauge } from '@/components/ui/RiskGauge'
 import { AddPositionForm } from '@/components/portfolio/AddPositionForm'
 import { CreatePortfolioForm } from '@/components/portfolio/CreatePortfolioForm'
 import { DeletePositionButton } from '@/components/portfolio/DeletePositionButton'
+import { portfolioApi } from '@/lib/api'
 import {
   usePortfolio,
   usePortfolioPerformance,
@@ -98,6 +100,12 @@ export default function Home() {
   )
 
   const riskPositions = risk?.positions || []
+  const noRiskScores = riskPositions.length === 0 || riskPositions.every((p) => p.risk_score == null)
+
+  const calculateRisk = useMutation({
+    mutationFn: () => portfolioApi.calculateRisk(selectedPortfolioId!).then((r) => r.data),
+    onSuccess: () => { riskQuery.refetch() },
+  })
 
   // Build a simple chart from performance data (mock 9 points if no data)
   const chartData = [78200, 79100, 80500, 79800, 81200, 82400, 81900, 83100,
@@ -259,17 +267,38 @@ export default function Home() {
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
                   <RiskGauge score={riskScore || 0} size={120} />
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {riskPositions.slice(0, 4).map((pos) => (
-                    <div key={pos.ticker} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#F0F4FF', width: 44 }}>{pos.ticker}</span>
-                      <div style={{ flex: 1, margin: '0 10px' }}>
-                        <InlineBar value={pos.risk_score} color={pos.risk_score >= 70 ? '#f43f5e' : pos.risk_score >= 40 ? '#f59e0b' : '#22c55e'} />
-                      </div>
-                      <Badge label={pos.risk_level} color={riskBadgeColor(pos.risk_level)} />
-                    </div>
-                  ))}
-                </div>
+                {noRiskScores ? (
+                  <div style={{ textAlign: 'center', paddingTop: 4 }}>
+                    <button
+                      onClick={() => selectedPortfolioId && calculateRisk.mutate()}
+                      disabled={calculateRisk.isPending || !selectedPortfolioId}
+                      style={{
+                        padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                        background: calculateRisk.isPending ? '#141C2B' : '#3b82f6',
+                        color: calculateRisk.isPending ? '#4A5568' : '#fff',
+                        border: 'none', cursor: calculateRisk.isPending ? 'not-allowed' : 'pointer',
+                        width: '100%',
+                      }}
+                    >
+                      {calculateRisk.isPending ? '⏳ Calculating…' : '🛡️ Calculate Risk'}
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {riskPositions.slice(0, 4).map((pos) => {
+                      const s = pos.risk_score ?? 0
+                      return (
+                        <div key={pos.ticker} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: '#F0F4FF', width: 44 }}>{pos.ticker}</span>
+                          <div style={{ flex: 1, margin: '0 10px' }}>
+                            <InlineBar value={s} color={s >= 70 ? '#f43f5e' : s >= 40 ? '#f59e0b' : '#22c55e'} />
+                          </div>
+                          <Badge label={pos.risk_level || 'unknown'} color={riskBadgeColor(pos.risk_level)} />
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </Card>
             </div>
 
@@ -370,9 +399,33 @@ export default function Home() {
                     </tr>
                   </thead>
                   <tbody>
-                    {riskPositions.length ? (
+                    {noRiskScores ? (
+                      <tr>
+                        <td colSpan={5} style={{ padding: '32px 20px', textAlign: 'center' }}>
+                          <p style={{ fontSize: 13, color: '#4A5568', marginBottom: 16 }}>
+                            Risk scores haven&apos;t been calculated yet.
+                          </p>
+                          <button
+                            onClick={() => selectedPortfolioId && calculateRisk.mutate()}
+                            disabled={calculateRisk.isPending || !selectedPortfolioId}
+                            style={{
+                              padding: '9px 22px', borderRadius: 9, fontSize: 13, fontWeight: 600,
+                              background: calculateRisk.isPending ? '#141C2B' : '#3b82f6',
+                              color: calculateRisk.isPending ? '#4A5568' : '#fff',
+                              border: 'none', cursor: calculateRisk.isPending ? 'not-allowed' : 'pointer',
+                            }}
+                          >
+                            {calculateRisk.isPending ? '⏳ Calculating…' : '🛡️ Calculate Risk Scores'}
+                          </button>
+                          {calculateRisk.isError && (
+                            <p style={{ fontSize: 12, color: '#f43f5e', marginTop: 8 }}>Calculation failed. Try again.</p>
+                          )}
+                        </td>
+                      </tr>
+                    ) : (
                       riskPositions.map((pos, i) => {
-                        const scoreColor = pos.risk_score >= 70 ? '#f43f5e' : pos.risk_score >= 40 ? '#f59e0b' : '#22c55e'
+                        const score = pos.risk_score ?? 0
+                        const scoreColor = score >= 70 ? '#f43f5e' : score >= 40 ? '#f59e0b' : '#22c55e'
                         return (
                           <tr key={pos.ticker} style={{ borderBottom: i < riskPositions.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
                             <td style={{ padding: '12px 20px' }}>
@@ -387,23 +440,19 @@ export default function Home() {
                                 <Link href={`/stock/${pos.ticker}`} style={{ fontSize: 13, fontWeight: 700, color: '#F0F4FF', textDecoration: 'none' }}>{pos.ticker}</Link>
                               </div>
                             </td>
-                            <td style={{ padding: '12px 20px', fontSize: 15, fontWeight: 800, color: scoreColor }}>{pos.risk_score}/100</td>
+                            <td style={{ padding: '12px 20px', fontSize: 15, fontWeight: 800, color: scoreColor }}>
+                              {pos.risk_score != null ? `${pos.risk_score}/100` : 'N/A'}
+                            </td>
                             <td style={{ padding: '12px 20px' }}>
-                              <Badge label={pos.risk_level} color={riskBadgeColor(pos.risk_level)} />
+                              <Badge label={pos.risk_level || 'unknown'} color={riskBadgeColor(pos.risk_level)} />
                             </td>
                             <td style={{ padding: '12px 20px', minWidth: 120 }}>
-                              <InlineBar value={pos.risk_score} color={scoreColor} />
+                              <InlineBar value={score} color={scoreColor} />
                             </td>
                             <td style={{ padding: '12px 20px', fontSize: 12, color: '#8B96B0' }}>{'—'}</td>
                           </tr>
                         )
                       })
-                    ) : (
-                      <tr>
-                        <td style={{ padding: '24px 20px', color: '#4A5568', fontSize: 13 }} colSpan={5}>
-                          No risk scores yet. Risk scores are calculated during daily sync.
-                        </td>
-                      </tr>
                     )}
                   </tbody>
                 </table>

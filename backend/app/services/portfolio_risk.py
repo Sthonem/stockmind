@@ -5,7 +5,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.portfolio import Position, RiskScore
-from app.services.risk_service import calculate_risk_for_ticker
 
 logger = logging.getLogger(__name__)
 
@@ -58,23 +57,6 @@ async def calculate_portfolio_risk_summary(
 
     for position in positions:
         latest = await get_latest_risk_score(position.id, db)
-
-        # No cached score — calculate live so the dashboard always has data
-        if not latest:
-            try:
-                live = calculate_risk_for_ticker(position.ticker)
-                latest = {
-                    "score": live["risk"]["score"],
-                    "rsi": live["indicators"]["rsi"].get("signal"),
-                    "macd": live["indicators"]["macd"].get("signal"),
-                    "bb_percent_b": live["indicators"]["bollinger_bands"].get("signal"),
-                    "sentiment": None,
-                    "notes": "Live calculation (no cached score yet)",
-                    "created_at": None,
-                }
-            except Exception as e:
-                logger.warning(f"Live risk calc failed for {position.ticker}: {e}")
-
         position_value = position.shares * position.avg_buy_price
 
         entry = {
