@@ -8,6 +8,7 @@ from app.services.indicators import (
 )
 from app.services.earnings import get_earnings_history, get_earnings_info
 from app.services.economic_calendar import fetch_economic_events, get_upcoming_high_impact
+from app.services.insider import get_insider_filings
 from app.services.institutional import get_institutional_ownership
 from app.services.market_data import get_current_price, get_ohlcv, get_stock_info
 from app.services.market_regime import detect_market_regime
@@ -186,6 +187,15 @@ def earnings_history(ticker: str):
     try:
         history = get_earnings_history(ticker.upper())
         return {"ticker": ticker.upper(), "history": history}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/insider/{ticker}")
+def insider_activity(ticker: str, days_back: int = 90):
+    try:
+        result = get_insider_filings(ticker.upper(), days_back=days_back)
+        return result
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
