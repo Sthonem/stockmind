@@ -76,7 +76,7 @@ def agent_health():
 
     return {
         "groq_configured": bool(settings.GROQ_API_KEY),
-        "model": "llama3-70b-8192",
+        "model": "llama-3.3-70b-versatile",
     }
 
 

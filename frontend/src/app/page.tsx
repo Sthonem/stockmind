@@ -302,62 +302,112 @@ export default function Home() {
                 </div>
               )}
 
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                    {['Ticker', 'Shares', 'Avg Buy', 'Current', 'Value', 'P/L', '7d Chart', ''].map((h) => (
-                      <th key={h} style={{ padding: '10px 20px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#4A5568', letterSpacing: 0.8, textTransform: 'uppercase' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {topPositions.length ? (
-                    topPositions.map((position, i) => {
-                      const positionId = positionIdsByTicker.get(position.ticker)
-                      const spark = [position.avg_buy_price * 0.95, position.avg_buy_price * 0.98, position.avg_buy_price, position.avg_buy_price * 1.02, position.current_price * 0.97, position.current_price * 0.99, position.current_price]
-                      return (
-                        <tr key={position.ticker} style={{
-                          borderBottom: i < topPositions.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none',
-                        }}>
-                          <td style={{ padding: '12px 20px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <div style={{
-                                width: 30, height: 30, borderRadius: 8,
-                                background: 'linear-gradient(135deg, #141C2B, #1A2333)',
-                                border: '1px solid rgba(255,255,255,0.07)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontSize: 10, fontWeight: 800, color: '#8B96B0',
-                              }}>{position.ticker.slice(0, 2)}</div>
-                              <Link href={`/stock/${position.ticker}`} style={{ fontSize: 13, fontWeight: 700, color: '#F0F4FF', textDecoration: 'none' }}>{position.ticker}</Link>
-                            </div>
-                          </td>
-                          <td style={{ padding: '12px 20px', fontSize: 13, color: '#8B96B0' }}>{position.shares}</td>
-                          <td style={{ padding: '12px 20px', fontSize: 13, color: '#8B96B0' }}>{formatMoney(position.avg_buy_price)}</td>
-                          <td style={{ padding: '12px 20px', fontSize: 13, color: '#F0F4FF', fontWeight: 500 }}>{formatMoney(position.current_price)}</td>
-                          <td style={{ padding: '12px 20px', fontSize: 13, color: '#F0F4FF' }}>{formatMoney(position.current_value)}</td>
-                          <td style={{ padding: '12px 20px' }}>
-                            <TrendChip value={position.unrealized_pnl_pct || 0} />
-                          </td>
-                          <td style={{ padding: '12px 20px' }}>
-                            <Sparkline data={spark} color={(position.unrealized_pnl_pct || 0) >= 0 ? '#22c55e' : '#f43f5e'} width={70} height={24} />
-                          </td>
-                          <td style={{ padding: '12px 20px' }}>
-                            {positionId && selectedPortfolioId ? (
-                              <DeletePositionButton positionId={positionId} ticker={position.ticker} portfolioId={selectedPortfolioId} />
-                            ) : null}
-                          </td>
-                        </tr>
-                      )
-                    })
-                  ) : (
-                    <tr>
-                      <td style={{ padding: '24px 20px', color: '#4A5568', fontSize: 13 }} colSpan={8}>
-                        No positions yet. Add one to start tracking performance.
-                      </td>
+              {activeTab === 'positions' ? (
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                      {['Ticker', 'Shares', 'Avg Buy', 'Current', 'Value', 'P/L', '7d Chart', ''].map((h) => (
+                        <th key={h} style={{ padding: '10px 20px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#4A5568', letterSpacing: 0.8, textTransform: 'uppercase' }}>{h}</th>
+                      ))}
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {topPositions.length ? (
+                      topPositions.map((position, i) => {
+                        const positionId = positionIdsByTicker.get(position.ticker)
+                        const spark = [position.avg_buy_price * 0.95, position.avg_buy_price * 0.98, position.avg_buy_price, position.avg_buy_price * 1.02, position.current_price * 0.97, position.current_price * 0.99, position.current_price]
+                        return (
+                          <tr key={position.ticker} style={{
+                            borderBottom: i < topPositions.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none',
+                          }}>
+                            <td style={{ padding: '12px 20px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{
+                                  width: 30, height: 30, borderRadius: 8,
+                                  background: 'linear-gradient(135deg, #141C2B, #1A2333)',
+                                  border: '1px solid rgba(255,255,255,0.07)',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  fontSize: position.ticker.length > 3 ? 8 : 10, fontWeight: 800, color: '#8B96B0',
+                                }}>{position.ticker}</div>
+                                <Link href={`/stock/${position.ticker}`} style={{ fontSize: 13, fontWeight: 700, color: '#F0F4FF', textDecoration: 'none' }}>{position.ticker}</Link>
+                              </div>
+                            </td>
+                            <td style={{ padding: '12px 20px', fontSize: 13, color: '#8B96B0' }}>{position.shares}</td>
+                            <td style={{ padding: '12px 20px', fontSize: 13, color: '#8B96B0' }}>{formatMoney(position.avg_buy_price)}</td>
+                            <td style={{ padding: '12px 20px', fontSize: 13, color: '#F0F4FF', fontWeight: 500 }}>{formatMoney(position.current_price)}</td>
+                            <td style={{ padding: '12px 20px', fontSize: 13, color: '#F0F4FF' }}>{formatMoney(position.current_value)}</td>
+                            <td style={{ padding: '12px 20px' }}>
+                              <TrendChip value={position.unrealized_pnl_pct || 0} />
+                            </td>
+                            <td style={{ padding: '12px 20px' }}>
+                              <Sparkline data={spark} color={(position.unrealized_pnl_pct || 0) >= 0 ? '#22c55e' : '#f43f5e'} width={70} height={24} />
+                            </td>
+                            <td style={{ padding: '12px 20px' }}>
+                              {positionId && selectedPortfolioId ? (
+                                <DeletePositionButton positionId={positionId} ticker={position.ticker} portfolioId={selectedPortfolioId} />
+                              ) : null}
+                            </td>
+                          </tr>
+                        )
+                      })
+                    ) : (
+                      <tr>
+                        <td style={{ padding: '24px 20px', color: '#4A5568', fontSize: 13 }} colSpan={8}>
+                          No positions yet. Add one to start tracking performance.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              ) : (
+                /* Risk tab */
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                      {['Ticker', 'Risk Score', 'Level', 'Bar', 'Recommendation'].map((h) => (
+                        <th key={h} style={{ padding: '10px 20px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#4A5568', letterSpacing: 0.8, textTransform: 'uppercase' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {riskPositions.length ? (
+                      riskPositions.map((pos, i) => {
+                        const scoreColor = pos.risk_score >= 70 ? '#f43f5e' : pos.risk_score >= 40 ? '#f59e0b' : '#22c55e'
+                        return (
+                          <tr key={pos.ticker} style={{ borderBottom: i < riskPositions.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
+                            <td style={{ padding: '12px 20px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{
+                                  width: 30, height: 30, borderRadius: 8,
+                                  background: 'linear-gradient(135deg, #141C2B, #1A2333)',
+                                  border: '1px solid rgba(255,255,255,0.07)',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  fontSize: pos.ticker.length > 3 ? 8 : 10, fontWeight: 800, color: '#8B96B0',
+                                }}>{pos.ticker}</div>
+                                <Link href={`/stock/${pos.ticker}`} style={{ fontSize: 13, fontWeight: 700, color: '#F0F4FF', textDecoration: 'none' }}>{pos.ticker}</Link>
+                              </div>
+                            </td>
+                            <td style={{ padding: '12px 20px', fontSize: 15, fontWeight: 800, color: scoreColor }}>{pos.risk_score}/100</td>
+                            <td style={{ padding: '12px 20px' }}>
+                              <Badge label={pos.risk_level} color={riskBadgeColor(pos.risk_level)} />
+                            </td>
+                            <td style={{ padding: '12px 20px', minWidth: 120 }}>
+                              <InlineBar value={pos.risk_score} color={scoreColor} />
+                            </td>
+                            <td style={{ padding: '12px 20px', fontSize: 12, color: '#8B96B0' }}>{'—'}</td>
+                          </tr>
+                        )
+                      })
+                    ) : (
+                      <tr>
+                        <td style={{ padding: '24px 20px', color: '#4A5568', fontSize: 13 }} colSpan={5}>
+                          No risk scores yet. Risk scores are calculated during daily sync.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
             </Card>
 
             {/* Bottom row */}

@@ -110,7 +110,9 @@ export default function DailyPage() {
         <div>
           <p style={{ fontSize: 11, fontWeight: 600, color: '#4A5568', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 }}>{today}</p>
           <h1 style={{ fontSize: 26, fontWeight: 900, color: '#F0F4FF', letterSpacing: -0.8, lineHeight: 1.15 }}>
-            {summary.news_theme || 'Market Update'}
+            {summary.summary && !summary.summary.startsWith('AI agent error')
+              ? summary.summary.split('\n').find(l => l.trim().length > 20 && !l.startsWith('-') && !l.startsWith('1.') && !l.includes(':')) || 'Market Update'
+              : 'Market Update'}
           </h1>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -166,20 +168,34 @@ export default function DailyPage() {
       )}
 
       {/* Market regime callout */}
-      {summary.market_regime && (
-        <div style={{
-          background: 'rgba(34,197,94,0.05)',
-          border: '1px solid rgba(34,197,94,0.18)',
-          borderRadius: 12, padding: '16px 20px', marginBottom: 16,
-          display: 'grid', gridTemplateColumns: '3px 1fr', gap: 16,
-        }}>
-          <div style={{ width: 3, borderRadius: 99, background: '#22c55e' }} />
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 700, color: '#22c55e', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>Market Regime</p>
-            <p style={{ fontSize: 13, color: '#8B96B0', lineHeight: 1.75 }}>{summary.market_regime}</p>
+      {summary.market_regime && (() => {
+        const parts = summary.market_regime.split('\n')
+        const regime = parts[0]?.replace('Regime: ', '').replace(/_/g, ' ') || ''
+        const description = parts[1]?.replace('Description: ', '') || ''
+        const implication = parts[2]?.replace('Implication: ', '') || ''
+        return (
+          <div style={{
+            background: 'rgba(34,197,94,0.05)',
+            border: '1px solid rgba(34,197,94,0.18)',
+            borderRadius: 12, padding: '16px 20px', marginBottom: 16,
+            display: 'grid', gridTemplateColumns: '3px 1fr', gap: 16,
+          }}>
+            <div style={{ width: 3, borderRadius: 99, background: '#22c55e' }} />
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#22c55e', letterSpacing: 0.8, textTransform: 'uppercase' }}>Market Regime</p>
+                {regime && (
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#F0F4FF', background: 'rgba(34,197,94,0.15)', padding: '2px 8px', borderRadius: 99 }}>
+                    {regime}
+                  </span>
+                )}
+              </div>
+              {description && <p style={{ fontSize: 13, color: '#8B96B0', lineHeight: 1.75, marginBottom: 4 }}>{description}</p>}
+              {implication && <p style={{ fontSize: 12, color: '#4A5568', lineHeight: 1.6 }}>→ {implication}</p>}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Events */}
       <Card style={{ padding: '16px 20px' }}>

@@ -95,7 +95,7 @@ def ask_agent(
 
     try:
         response = client.chat.completions.create(
-            model="llama3-70b-8192",
+            model="llama-3.3-70b-versatile",
             messages=messages,
             temperature=0.3,
             max_tokens=1000,
@@ -106,7 +106,7 @@ def ask_agent(
 
         return {
             "answer": answer,
-            "model": "llama3-70b-8192",
+            "model": "llama-3.3-70b-versatile",
             "tokens_used": tokens,
         }
 

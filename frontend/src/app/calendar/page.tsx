@@ -197,9 +197,15 @@ export default function CalendarPage() {
                                 </span>
                               )}
                             </div>
-                            {timeStr && (
-                              <p style={{ fontSize: 11, color: '#4A5568', marginTop: 2 }}>{timeStr} ET</p>
-                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 2, flexWrap: 'wrap' }}>
+                              {timeStr && <p style={{ fontSize: 11, color: '#4A5568' }}>{timeStr} ET</p>}
+                              {event.forecast && event.forecast !== 'N/A' && (
+                                <p style={{ fontSize: 11, color: '#4A5568' }}>Forecast: <span style={{ color: '#8B96B0' }}>{event.forecast}</span></p>
+                              )}
+                              {event.previous && event.previous !== 'N/A' && (
+                                <p style={{ fontSize: 11, color: '#4A5568' }}>Prev: <span style={{ color: '#8B96B0' }}>{event.previous}</span></p>
+                              )}
+                            </div>
                             {event.affected_sectors?.length > 0 && (
                               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
                                 {event.affected_sectors.slice(0, 3).map((s) => (
