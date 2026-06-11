@@ -1,13 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 
 import { Badge } from '@/components/ui/Badge'
 import { TrendChip } from '@/components/ui/TrendChip'
 import { Sparkline } from '@/components/charts/MiniChart'
 import { Card } from '@/components/ui/Card'
-import { agentApi } from '@/lib/api'
+import { agentApi, marketApi } from '@/lib/api'
 import { usePortfolios } from '@/lib/hooks'
 import type { Portfolio } from '@/lib/types'
 
@@ -21,18 +21,108 @@ interface DailySummary {
   tokens_used: number
 }
 
-const mockIndices = [
-  { name: 'S&P 500', value: '5,842', chg: 1.12, spark: [5700, 5720, 5760, 5740, 5800, 5820, 5842] },
-  { name: 'NASDAQ',  value: '18,620', chg: 1.84, spark: [18100, 18200, 18350, 18280, 18490, 18560, 18620] },
-  { name: 'DOW',     value: '43,290', chg: 0.67, spark: [43000, 43050, 43100, 43080, 43200, 43250, 43290] },
-  { name: 'VIX',     value: '14.2',   chg: -8.30, spark: [16.8, 16.2, 15.9, 15.5, 15.0, 14.6, 14.2] },
-]
+interface MarketIndex {
+  symbol: string
+  name: string
+  value: number
+  change_pct: number
+  sparkline: number[]
+}
 
-const mockEvents = [
-  { time: '10:00', label: 'ISM Services PMI', impact: 'high', ticker: null },
-  { time: '14:00', label: 'Powell speaks at Brookings', impact: 'high', ticker: null },
-  { time: '16:30', label: 'AMZN Q1 Earnings', impact: 'high', ticker: 'AMZN' },
-]
+interface CalendarEvent {
+  title: string
+  date: string
+  impact: string
+}
+
+function formatIndexValue(name: string, value: number): string {
+  if (name === 'VIX') return value.toFixed(1)
+  return value.toLocaleString('en-US', { maximumFractionDigits: 0 })
+}
+
+function IndexStrip() {
+  const { data, isLoading } = useQuery<{ indices: MarketIndex[] }>({
+    queryKey: ['market-indices'],
+    queryFn: () => marketApi.indices().then((r) => r.data),
+    staleTime: 1000 * 60 * 5,
+    retry: 1,
+  })
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="shimmer" style={{ height: 78, borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)' }} />
+        ))}
+      </div>
+    )
+  }
+
+  const indices = data?.indices || []
+  if (!indices.length) return null
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${indices.length}, 1fr)`, gap: 10, marginBottom: 20 }}>
+      {indices.map((idx) => (
+        <div key={idx.symbol} style={{
+          background: '#0E1420', border: '1px solid rgba(255,255,255,0.07)',
+          borderRadius: 12, padding: '12px 14px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+        }}>
+          <div>
+            <p style={{ fontSize: 10, color: '#4A5568', marginBottom: 4 }}>{idx.name}</p>
+            <p style={{ fontSize: 16, fontWeight: 800, color: '#F0F4FF', letterSpacing: -0.5 }}>
+              {formatIndexValue(idx.name, idx.value)}
+            </p>
+            <TrendChip value={idx.change_pct} />
+          </div>
+          <Sparkline data={idx.sparkline} color={idx.change_pct >= 0 ? '#22c55e' : '#f43f5e'} width={56} height={32} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function TodayEvents() {
+  const { data } = useQuery<{ events: CalendarEvent[] }>({
+    queryKey: ['calendar-week'],
+    queryFn: () => marketApi.calendarWeek().then((r) => r.data),
+    staleTime: 1000 * 60 * 30,
+    retry: 1,
+  })
+
+  const events = (data?.events || [])
+    .filter((e) => {
+      const d = new Date(e.date)
+      return !Number.isNaN(d.getTime()) && d.getTime() >= Date.now() - 24 * 3600 * 1000
+    })
+    .slice(0, 4)
+
+  if (!events.length) return null
+
+  return (
+    <Card style={{ padding: '16px 20px' }}>
+      <p style={{ fontSize: 11, fontWeight: 700, color: '#4A5568', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 14 }}>Coming up on the calendar</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {events.map((e, i) => {
+          const d = new Date(e.date)
+          const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          return (
+            <div key={`${e.title}-${i}`} style={{
+              display: 'flex', alignItems: 'center', gap: 14,
+              padding: '10px 0',
+              borderBottom: i < events.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none',
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#4A5568', minWidth: 52, fontVariantNumeric: 'tabular-nums' }}>{dateLabel}</span>
+              <span style={{ fontSize: 13, color: '#F0F4FF', flex: 1 }}>{e.title}</span>
+              <Badge label={e.impact} color={e.impact === 'High' ? 'red' : e.impact === 'Medium' ? 'yellow' : 'gray'} />
+            </div>
+          )
+        })}
+      </div>
+    </Card>
+  )
+}
 
 export default function DailyPage() {
   const [summary, setSummary] = useState<DailySummary | null>(null)
@@ -69,6 +159,9 @@ export default function DailyPage() {
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#F0F4FF', letterSpacing: -0.5, marginBottom: 4 }}>Daily Briefing</h1>
           <p style={{ fontSize: 13, color: '#8B96B0' }}>Your personalized market summary, generated each morning</p>
         </div>
+
+        <IndexStrip />
+
         <div style={{
           border: '1px dashed rgba(255,255,255,0.1)',
           borderRadius: 16,
@@ -130,23 +223,8 @@ export default function DailyPage() {
         </div>
       </div>
 
-      {/* Index strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
-        {mockIndices.map((idx) => (
-          <div key={idx.name} style={{
-            background: '#0E1420', border: '1px solid rgba(255,255,255,0.07)',
-            borderRadius: 12, padding: '12px 14px',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-          }}>
-            <div>
-              <p style={{ fontSize: 10, color: '#4A5568', marginBottom: 4 }}>{idx.name}</p>
-              <p style={{ fontSize: 16, fontWeight: 800, color: '#F0F4FF', letterSpacing: -0.5 }}>{idx.value}</p>
-              <TrendChip value={idx.chg} />
-            </div>
-            <Sparkline data={idx.spark} color={idx.chg >= 0 ? '#22c55e' : '#f43f5e'} width={56} height={32} />
-          </div>
-        ))}
-      </div>
+      {/* Index strip — live data */}
+      <IndexStrip />
 
       {/* Summary content */}
       {lines.length > 0 && (
@@ -197,30 +275,8 @@ export default function DailyPage() {
         )
       })()}
 
-      {/* Events */}
-      <Card style={{ padding: '16px 20px' }}>
-        <p style={{ fontSize: 11, fontWeight: 700, color: '#4A5568', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 14 }}>On the calendar today</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {mockEvents.map((e, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'center', gap: 14,
-              padding: '10px 0',
-              borderBottom: i < mockEvents.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none',
-            }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#4A5568', minWidth: 42, fontVariantNumeric: 'tabular-nums' }}>{e.time}</span>
-              <span style={{ fontSize: 13, color: '#F0F4FF', flex: 1 }}>
-                {e.label}
-                {e.ticker && (
-                  <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#8B96B0', background: '#141C2B', border: '1px solid rgba(255,255,255,0.07)', padding: '1px 7px', borderRadius: 5 }}>
-                    {e.ticker}
-                  </span>
-                )}
-              </span>
-              <Badge label={e.impact} color={e.impact === 'high' ? 'red' : 'yellow'} />
-            </div>
-          ))}
-        </div>
-      </Card>
+      {/* Events — live calendar data */}
+      <TodayEvents />
 
       <p style={{ textAlign: 'right', fontSize: 10, color: '#4A5568', marginTop: 12 }}>
         Generated {new Date(summary.generated_at).toLocaleTimeString()} · {summary.tokens_used} tokens

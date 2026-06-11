@@ -48,18 +48,20 @@ export default function ChatPage() {
         portfolioContext ? portfolioId : undefined,
         messages.map((m) => ({ role: m.role, content: m.content }))
       ).then((res) => res.data),
-    onSuccess: (data, question) => {
-      const ts = currentTime()
+    onMutate: (question) => {
+      // Show the user's message immediately, before the AI responds
+      setMessages((prev) => [...prev, { role: 'user', content: question, timestamp: currentTime() }])
+    },
+    onSuccess: (data) => {
       setMessages((prev) => [
         ...prev,
-        { role: 'user', content: question, timestamp: ts },
-        { role: 'assistant', content: data.answer, timestamp: ts, tokensUsed: data.tokens_used },
+        { role: 'assistant', content: data.answer, timestamp: currentTime(), tokensUsed: data.tokens_used },
       ])
     },
     onError: () => {
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: 'Sorry, I encountered an error. Please check your GROQ_API_KEY configuration.', timestamp: currentTime() },
+        { role: 'assistant', content: 'Sorry, I encountered an error. Please try again in a moment.', timestamp: currentTime() },
       ])
     },
   })
@@ -109,7 +111,7 @@ export default function ChatPage() {
             />
             Portfolio context
           </label>
-          <Badge label="LLaMA 3 · Groq" color="purple" />
+          <Badge label="Llama 3.3 70B · Groq" color="purple" />
         </div>
       </div>
 

@@ -5,17 +5,15 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+# SEC requires a User-Agent identifying the requester.
+# Never set Host manually — httpx derives it from the URL, and a wrong
+# Host header makes data.sec.gov reject the request.
 HEADERS = {
     "User-Agent": "StockMind contact@example.com",
     "Accept-Encoding": "gzip, deflate",
-    "Host": "www.sec.gov",
 }
 
-DATA_HEADERS = {
-    "User-Agent": "StockMind contact@example.com",
-    "Accept-Encoding": "gzip, deflate",
-    "Host": "data.sec.gov",
-}
+DATA_HEADERS = HEADERS
 
 
 def get_cik_for_ticker(ticker: str) -> str | None:

@@ -31,6 +31,15 @@ function WatchlistCard({ item }: { item: WatchlistItem }) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['watchlist'] }),
   })
 
+  // Real 2-week sparkline from OHLCV history
+  interface OhlcvResponse { data?: { close: number }[] }
+  const { data: ohlcvData } = useQuery<OhlcvResponse>({
+    queryKey: ['ohlcv-spark', item.ticker],
+    queryFn: () => marketApi.ohlcv(item.ticker, '1mo').then((r) => r.data),
+    staleTime: 1000 * 60 * 30,
+    retry: 1,
+  })
+
   const currentPrice = priceData?.price || 0
   const target = item.target_price || 0
   const dist = target && currentPrice ? ((target - currentPrice) / currentPrice) * 100 : 0
@@ -39,10 +48,8 @@ function WatchlistCard({ item }: { item: WatchlistItem }) {
     (item.alert_below && currentPrice && currentPrice <= item.alert_below) ||
     (target && currentPrice && Math.abs(currentPrice - target) / target <= 0.02)
   )
-  // Simple spark from avg to current
-  const spark = currentPrice
-    ? [currentPrice * 0.93, currentPrice * 0.96, currentPrice * 0.97, currentPrice * 0.99, currentPrice * 0.98, currentPrice * 1.0, currentPrice]
-    : [1, 1, 1, 1, 1, 1, 1]
+  const closes = (ohlcvData?.data || []).map((d) => d.close).slice(-10)
+  const sparkUp = closes.length >= 2 ? closes[closes.length - 1] >= closes[0] : true
 
   return (
     <Card style={{ padding: '16px 20px' }}>
@@ -52,8 +59,8 @@ function WatchlistCard({ item }: { item: WatchlistItem }) {
           width: 42, height: 42, borderRadius: 10,
           background: '#141C2B', border: '1px solid rgba(255,255,255,0.07)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, fontWeight: 800, color: '#8B96B0', flexShrink: 0,
-        }}>{item.ticker.slice(0, 2)}</div>
+          fontSize: item.ticker.length > 3 ? 9 : 11, fontWeight: 800, color: '#8B96B0', flexShrink: 0,
+        }}>{item.ticker}</div>
 
         {/* Info */}
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -66,8 +73,10 @@ function WatchlistCard({ item }: { item: WatchlistItem }) {
           </p>
         </div>
 
-        {/* Spark */}
-        <Sparkline data={spark} color={dist >= 0 ? '#22c55e' : '#f43f5e'} width={72} height={26} />
+        {/* Spark — real price history */}
+        {closes.length >= 2 && (
+          <Sparkline data={closes} color={sparkUp ? '#22c55e' : '#f43f5e'} width={72} height={26} />
+        )}
 
         {/* Prices */}
         <div style={{ textAlign: 'right', minWidth: 100 }}>

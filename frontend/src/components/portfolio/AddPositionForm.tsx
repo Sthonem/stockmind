@@ -52,22 +52,42 @@ export function AddPositionForm({ portfolioId, onSuccess, onCancel }: AddPositio
     }
   }
 
+  const inputStyle = {
+    width: '100%',
+    height: 38,
+    borderRadius: 8,
+    background: '#141C2B',
+    border: '1px solid rgba(255,255,255,0.07)',
+    color: '#F0F4FF',
+    padding: '0 12px',
+    fontSize: 13,
+    outline: 'none',
+    boxSizing: 'border-box' as const,
+  }
+
+  const labelStyle = {
+    display: 'block',
+    fontSize: 12,
+    color: '#8B96B0',
+    marginBottom: 6,
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
         <div>
-          <label className="block text-sm text-gray-400 mb-1">Ticker Symbol</label>
+          <label style={labelStyle}>Ticker Symbol</label>
           <input
             type="text"
             value={ticker}
             onChange={(e) => setTicker(e.target.value.toUpperCase())}
             placeholder="AAPL"
             maxLength={10}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+            style={inputStyle}
           />
         </div>
         <div>
-          <label className="block text-sm text-gray-400 mb-1">Shares</label>
+          <label style={labelStyle}>Shares</label>
           <input
             type="number"
             value={shares}
@@ -75,11 +95,11 @@ export function AddPositionForm({ portfolioId, onSuccess, onCancel }: AddPositio
             placeholder="10"
             min="0.001"
             step="any"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+            style={inputStyle}
           />
         </div>
         <div>
-          <label className="block text-sm text-gray-400 mb-1">Avg Buy Price ($)</label>
+          <label style={labelStyle}>Avg Buy Price ($)</label>
           <input
             type="number"
             value={avgBuyPrice}
@@ -87,41 +107,55 @@ export function AddPositionForm({ portfolioId, onSuccess, onCancel }: AddPositio
             placeholder="175.50"
             min="0.01"
             step="any"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+            style={inputStyle}
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm text-gray-400 mb-1">Notes (optional)</label>
+        <label style={labelStyle}>Notes (optional)</label>
         <input
           type="text"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Why did you buy this?"
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+          style={inputStyle}
         />
       </div>
 
       {error && (
-        <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+        <p style={{
+          fontSize: 13, color: '#f43f5e',
+          background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.2)',
+          borderRadius: 8, padding: '10px 12px',
+        }}>
           {error}
         </p>
       )}
 
-      <div className="flex gap-3">
+      <div style={{ display: 'flex', gap: 10 }}>
         <button
           type="submit"
           disabled={addPosition.isPending}
-          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          style={{
+            height: 36, padding: '0 18px', borderRadius: 8,
+            background: addPosition.isPending ? '#141C2B' : '#3b82f6',
+            color: addPosition.isPending ? '#4A5568' : '#fff',
+            fontSize: 13, fontWeight: 600, border: 'none',
+            cursor: addPosition.isPending ? 'not-allowed' : 'pointer',
+          }}
         >
-          {addPosition.isPending ? 'Adding...' : 'Add Position'}
+          {addPosition.isPending ? 'Adding…' : 'Add Position'}
         </button>
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
-            className="bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            style={{
+              height: 36, padding: '0 18px', borderRadius: 8,
+              background: '#141C2B', border: '1px solid rgba(255,255,255,0.07)',
+              color: '#8B96B0', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+            }}
           >
             Cancel
           </button>

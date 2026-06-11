@@ -10,7 +10,12 @@ from app.services.earnings import get_earnings_history, get_earnings_info
 from app.services.economic_calendar import fetch_economic_events, get_upcoming_high_impact
 from app.services.insider import get_insider_filings
 from app.services.institutional import get_institutional_ownership
-from app.services.market_data import get_current_price, get_ohlcv, get_stock_info
+from app.services.market_data import (
+    get_current_price,
+    get_market_indices,
+    get_ohlcv,
+    get_stock_info,
+)
 from app.services.market_regime import detect_market_regime
 from app.services.backtest import run_backtest
 from app.services.position_sizing import calculate_position_size_from_history
@@ -20,6 +25,14 @@ from app.services.stop_loss import analyze_stop_loss_for_ticker
 from app.services.technical_analysis import analyze_ticker
 
 router = APIRouter(prefix="/api/v1/market", tags=["market"])
+
+
+@router.get("/indices")
+def market_indices():
+    indices = get_market_indices()
+    if not indices:
+        raise HTTPException(status_code=503, detail="Index data unavailable")
+    return {"indices": indices}
 
 
 @router.get("/info/{ticker}")

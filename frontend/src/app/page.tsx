@@ -176,6 +176,20 @@ export default function Home() {
             >
               <RefreshCcw size={13} /> Refresh
             </button>
+            {hasPortfolio && (
+              <Link
+                href={`/portfolio/${selectedPortfolioId}`}
+                style={{
+                  height: 36, padding: '0 14px', borderRadius: 8,
+                  background: '#3b82f6', border: '1px solid transparent',
+                  color: '#fff', fontSize: 13, fontWeight: 600,
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  textDecoration: 'none',
+                }}
+              >
+                📊 Full Analysis
+              </Link>
+            )}
           </div>
         </div>
 

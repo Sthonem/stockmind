@@ -48,3 +48,37 @@ def get_multiple_prices(tickers: list[str]) -> dict[str, Optional[float]]:
     for ticker in tickers:
         result[ticker] = get_current_price(ticker)
     return result
+
+
+MARKET_INDICES = [
+    {"symbol": "^GSPC", "name": "S&P 500"},
+    {"symbol": "^IXIC", "name": "NASDAQ"},
+    {"symbol": "^DJI", "name": "DOW"},
+    {"symbol": "^VIX", "name": "VIX"},
+]
+
+
+def get_market_indices() -> list[dict]:
+    """Live snapshot of the major US indices with a 7-day sparkline."""
+    results = []
+    for index in MARKET_INDICES:
+        try:
+            df = get_ohlcv(index["symbol"], period="1mo")
+            closes = df["close"].tolist()
+            if len(closes) < 2:
+                continue
+            last = closes[-1]
+            prev = closes[-2]
+            change_pct = ((last - prev) / prev) * 100 if prev else 0.0
+            results.append(
+                {
+                    "symbol": index["symbol"],
+                    "name": index["name"],
+                    "value": round(last, 2),
+                    "change_pct": round(change_pct, 2),
+                    "sparkline": [round(c, 2) for c in closes[-7:]],
+                }
+            )
+        except Exception:
+            continue
+    return results

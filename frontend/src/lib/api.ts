@@ -41,6 +41,7 @@ export const portfolioApi = {
 }
 
 export const marketApi = {
+  indices: () => api.get('/api/v1/market/indices'),
   price: (ticker: string) => api.get(`/api/v1/market/price/${ticker}`),
   info: (ticker: string) => api.get(`/api/v1/market/info/${ticker}`),
   ohlcv: (ticker: string, period?: string) =>
